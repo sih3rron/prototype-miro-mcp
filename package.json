@@ -1,0 +1,36 @@
+{
+    "name": "miro-template-recommender-mcp",
+    "version": "0.1.0",
+    "description": "MCP server that recommends Miro templates based on board content analysis",
+    "main": "build/index.js",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "start": "node build/index.js",
+        "dev": "tsc --watch & node --watch build/index.js",
+        "prepare": "npm run build"
+    },
+    "keywords": [
+        "mcp",
+        "miro",
+        "templates",
+        "collaboration",
+        "ai"
+    ],
+    "author": "Simon Herron",
+    "license": "MIT",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^0.4.0",
+        "axios": "^1.9.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    },
+    "bin": {
+        "miro-template-recommender-mcp": "./build/index.js"
+    },
+    "files": [
+        "build/**/*"
+    ]
+}
