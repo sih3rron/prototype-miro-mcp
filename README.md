@@ -1,21 +1,21 @@
-# Miro Template Recommender MCP Server
+# Miro Template Recommender
 
-An MCP (Model Context Protocol) server that analyzes Miro board content and recommends relevant Miro templates based on the context and content found in your boards.
+An intelligent template recommendation system that analyzes meeting notes and Miro board content to suggest relevant Miro templates for workshops and collaborative sessions.
 
 ## Features
 
-- **Content Analysis**: Extracts and analyzes text content from Miro boards
-- **Smart Categorization**: Identifies board purposes (agile, design, planning, etc.)
-- **Template Recommendations**: Suggests relevant Miro templates based on content
-- **Relevance Scoring**: Ranks recommendations by relevance to board content
-- **Multiple Tools**: Provides both analysis and recommendation capabilities
+- **Meeting Notes Analysis**: Analyzes meeting notes to understand context and requirements
+- **Smart Template Matching**: Matches content with relevant Miro templates across multiple categories
+- **Contextual Recommendations**: Provides template suggestions based on meeting objectives and content
+- **Multiple Input Types**: Supports both Miro board content and meeting notes analysis
+- **Weighted Scoring**: Ranks recommendations based on relevance and context
 
 ## Installation
 
 1. **Clone and install dependencies:**
 ```bash
 git clone <your-repo>
-cd miro-template-recommender-mcp
+cd miro-template-recommender
 npm install
 ```
 
@@ -33,118 +33,153 @@ npm run build
    export MIRO_ACCESS_TOKEN="your_access_token_here"
    ```
 
-## Configuration
-
-Add the MCP server to your Claude Desktop configuration:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "miro-template-recommender": {
-      "command": "node",
-      "args": ["path/to/miro-template-recommender-mcp/build/index.js"],
-      "env": {
-        "MIRO_ACCESS_TOKEN": "your_access_token_here"
-      }
-    }
-  }
-}
-```
-
 ## Usage
 
-### 1. Get Template Recommendations
+### 1. Get Template Recommendations from Meeting Notes
 
-```
-Can you recommend Miro templates for board ID "uXjVKMOJbXg="?
+```typescript
+const recommendations = await recommendTemplates({
+  meetingNotes: "Your meeting notes here...",
+  maxRecommendations: 5
+});
 ```
 
 This will:
-- Analyze the board content
-- Identify relevant categories
+- Parse and analyze meeting notes
+- Identify key themes and objectives
 - Return ranked template recommendations
 
-### 2. Analyze Board Content
+### 2. Get Template Recommendations from Miro Board
 
-```
-Please analyze the content of Miro board "uXjVKMOJbXg=" and tell me what it's about.
+```typescript
+const recommendations = await recommendTemplates({
+  boardId: "your-board-id",
+  maxRecommendations: 5
+});
 ```
 
 This will:
-- Extract all text content from the board
-- Identify keywords and themes
-- Provide context about the board's purpose
+- Extract content from the Miro board
+- Analyze board context and purpose
+- Return relevant template suggestions
 
 ## Supported Template Categories
 
-The server recognizes and recommends templates for:
+The system recognizes and recommends templates for:
 
-- **Brainstorming**: Mind maps, brainwriting, idea parking lots
-- **Planning**: Product roadmaps, project timelines, OKRs
-- **Agile**: Sprint planning, retrospectives, user story mapping
-- **Design**: Wireframes, design systems, user journey maps
-- **Analysis**: SWOT analysis, competitive analysis, research synthesis
-- **Workshops**: Icebreakers, workshop agendas, team charters
+- **Workshops**: 
+  - Workshop Agenda
+  - Icebreaker Activities
+  - Team Charter
+
+- **Planning**: 
+  - Product Roadmap
+  - Project Timeline
+  - OKRs Template
+
+- **Collaboration**: 
+  - Mind Map
+  - Brainwriting
+  - Idea Parking Lot
+
+- **Analysis**: 
+  - SWOT Analysis
+  - Research Synthesis
+  - Decision Matrix
+
+- **Agile**: 
+  - Sprint Planning
+  - Retrospective
+  - User Story Mapping
+
+- **Design**: 
+  - Wireframe Kit
+  - Design System
+  - User Journey Map
 
 ## API Reference
 
-### Tools Available
+### `recommendTemplates`
 
-#### `recommend_miro_templates`
-Analyzes a Miro board and returns template recommendations.
+Analyzes content and returns template recommendations.
 
 **Parameters:**
-- `boardId` (required): The Miro board ID
+- `boardId` (optional): The Miro board ID
+- `meetingNotes` (optional): Meeting notes text to analyze
 - `maxRecommendations` (optional): Maximum number of recommendations (default: 5)
 
-**Returns:**
-- Board analysis (keywords, categories, context)
-- Ranked template recommendations with URLs and descriptions
-
-#### `get_board_analysis`
-Provides detailed analysis of a Miro board's content.
-
-**Parameters:**
-- `boardId` (required): The Miro board ID
+**Note:** Either `boardId` or `meetingNotes` must be provided.
 
 **Returns:**
-- Content summary
-- Detected keywords and categories
-- Board context description
-
-## Example Output
-
-```json
+```typescript
 {
-  "boardId": "uXjVKMOJbXg=",
+  contentType: "meeting_notes" | "miro_board",
+  analysis: {
+    detectedKeywords: string[],
+    identifiedCategories: string[],
+    context: string,
+    extractedContent?: string[]
+  },
+  recommendations: Array<{
+    name: string,
+    url: string,
+    description: string,
+    category: string,
+    relevanceScore: number
+  }>
+}
+```
+
+## Example Usage
+
+```typescript
+// Example with meeting notes
+const result = await recommendTemplates({
+  meetingNotes: `
+    Meeting Recap:
+    - Discussed project timeline
+    - Need to plan workshop
+    - Team collaboration required
+  `,
+  maxRecommendations: 3
+});
+
+// Example output
+{
+  "contentType": "meeting_notes",
   "analysis": {
-    "detectedKeywords": ["sprint", "retrospective", "user stories", "backlog"],
-    "identifiedCategories": ["agile"],
-    "context": "Board appears to focus on: Agile/Scrum methodology"
+    "detectedKeywords": ["project", "timeline", "workshop", "collaboration"],
+    "identifiedCategories": ["planning", "workshops"],
+    "context": "Content appears to focus on: Strategic planning, Team collaboration and workshops"
   },
   "recommendations": [
     {
-      "name": "Sprint Planning",
-      "url": "https://miro.com/templates/sprint-planning/",
-      "description": "Plan your next sprint effectively",
-      "category": "agile",
-      "relevanceScore": 0.85
+      "name": "Workshop Agenda",
+      "url": "https://miro.com/templates/workshop-agenda/",
+      "description": "Structure your workshop sessions",
+      "category": "workshops",
+      "relevanceScore": 0.9
     },
     {
-      "name": "Retrospective",
-      "url": "https://miro.com/templates/retrospective/",
-      "description": "Reflect on team performance and improve",
-      "category": "agile",
-      "relevanceScore": 0.75
+      "name": "Project Timeline",
+      "url": "https://miro.com/templates/project-timeline/",
+      "description": "Visualize project phases and milestones",
+      "category": "planning",
+      "relevanceScore": 0.85
     }
   ]
 }
 ```
 
 ## Development
+
+### Project Structure
+```
+src/
+├── index.ts              # Main server implementation
+├── miro-client.ts        # Miro API integration
+└── template-engine.ts    # Template recommendation logic
+```
 
 ### Running in Development Mode
 ```bash
@@ -156,40 +191,34 @@ npm run dev
 npm run build
 ```
 
-### Project Structure
-```
-src/
-├── index.ts              # Main MCP server
-├── miro-client.ts        # Miro API integration
-└── template-categories.ts # Template definitions
-```
-
-## Extending the Server
+## Extending the System
 
 ### Adding New Template Categories
 
-1. Edit the `TEMPLATE_CATEGORIES` object in `index.ts`
-2. Add keywords and template definitions
-3. Rebuild the project
+1. Update the `TEMPLATE_CATEGORIES` object in `index.ts`
+2. Add new categories with:
+   - Keywords for matching
+   - Template definitions
+   - Category weight for scoring
 
-### Customizing Analysis Logic
+### Customizing Analysis
 
 The content analysis can be enhanced by:
-- Adding more sophisticated NLP
-- Implementing machine learning models
-- Adding support for more Miro item types
+- Adding more sophisticated keyword matching
+- Implementing semantic analysis
+- Supporting additional content types
 
-## Authentication & Security
+## Security
 
-- Store your Miro access token securely
-- Use environment variables, not hardcoded values
-- Consider implementing token refresh logic for production use
+- Store Miro access tokens securely using environment variables
+- Implement proper error handling for API calls
+- Consider rate limiting for API requests
 
 ## Limitations
 
-- Requires Miro API access token
-- Template recommendations are based on predefined categories
-- Analysis is keyword-based (not semantic)
+- Requires Miro API access for board analysis
+- Template recommendations are based on predefined categories and keywords
+- Analysis is primarily keyword-based
 
 ## Contributing
 
@@ -206,6 +235,5 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For issues related to:
-- **MCP Protocol**: Check [MCP documentation](https://modelcontextprotocol.io/)
 - **Miro API**: Check [Miro Developer docs](https://developers.miro.com/)
-- **This server**: Create an issue in this repository
+- **This project**: Create an issue in this repository
