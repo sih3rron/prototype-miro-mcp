@@ -388,6 +388,26 @@ class MiroTemplateRecommenderServer {
             },
             required: ["boardId"]
           }
+        },
+        {
+          name: "auto_recommend_templates",
+          description: "Recommend Miro templates based on either a Miro board or meeting notes text.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID to analyze" },
+              meetingNotes: { type: "string", description: "The meeting notes text to analyze" },
+              maxRecommendations: {
+                type: "number",
+                description: "Maximum number of template recommendations (default: 5)",
+                default: 5
+              }
+            },
+            anyOf: [
+              { required: ["boardId"] },
+              { required: ["meetingNotes"] }
+            ]
+          }
         }
       ]
     }));
@@ -404,6 +424,8 @@ class MiroTemplateRecommenderServer {
           return this.analyzeMeetingNotes(request.params.arguments);
         case "get_board_analysis":
           return this.analyzeBoardContent(request.params.arguments);
+        case "auto_recommend_templates":
+          return this.autoRecommendTemplates(request.params.arguments);
         default:
           throw new Error(`Unknown tool: ${request.params.name}`);
       }
@@ -729,6 +751,23 @@ class MiroTemplateRecommenderServer {
       const matches = keywords.filter((k) => categoryKeywords.includes(k)).length;
       return matches / categoryKeywords.length;
     }
+
+  private async autoRecommendTemplates(args: any) {
+    const { boardId, meetingNotes, maxRecommendations = 5 } = args;
+    if (boardId) {
+      return this.recommendTemplates({ boardId, maxRecommendations });
+    } else if (meetingNotes) {
+      return this.analyzeMeetingNotes({ meetingNotes, maxRecommendations });
+    } else {
+      return {
+        content: [{
+          type: "text",
+          text: "Please provide either a Miro board ID or meeting notes text."
+        }],
+        isError: true
+      };
+    }
+  }
 
   async run() {
     // Initialize Miro client if access token is provided
