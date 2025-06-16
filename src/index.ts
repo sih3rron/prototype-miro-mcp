@@ -10,12 +10,73 @@ import axios from 'axios';
 
 // Enhanced template categories with meeting-specific keywords
 const TEMPLATE_CATEGORIES = {
+  "workshops": {
+    keywords: [
+      "workshop", "facilitation", "meeting", "collaboration", "team building",
+      "icebreaker", "session", "attendees", "participants", "discussion",
+      "facilitated", "breakout", "group exercise", "team activity"
+    ],
+    semanticDescription: "Activities and structures for facilitating group sessions, team building, and collaborative work",
+    templates: [
+      {
+        name: "Workshop Agenda",
+        url: "https://miro.com/templates/workshop-agenda/",
+        description: "Structure your workshop sessions effectively"
+      },
+      {
+        name: "Icebreaker Activities",
+        url: "https://miro.com/templates/icebreaker-activities/",
+        description: "Energize your team and break the ice"
+      },
+      {
+        name: "Team Charter",
+        url: "https://miro.com/templates/team-charter/",
+        description: "Define team purpose, roles, and working agreements"
+      },
+      {
+        name: "Event Planning",
+        url: "https://miro.com/templates/event-planning/",
+        description: "Plan and organize events with a visual checklist"
+      },
+      {
+        name: "Team Meeting Agenda",
+        url: "https://miro.com/templates/team-meeting-agenda/",
+        description: "Structure team meetings with clear goals and action items"
+      },
+      {
+        name: "One-on-one Meeting",
+        url: "https://miro.com/templates/one-on-one-meeting/",
+        description: "Structure productive one-on-one meetings"
+      },
+      {
+        name: "Parking Lot Matrix",
+        url: "https://miro.com/templates/parking-lot-matrix/",
+        description: "Organize and prioritize ideas during meetings"
+      },
+      {
+        name: "Design Sprint",
+        url: "https://miro.com/templates/design-sprint/",
+        description: "Run a 5-day design sprint workshop"
+      },
+      {
+        name: "Remote Workshop",
+        url: "https://miro.com/templates/remote-workshop/",
+        description: "Facilitate effective remote workshops"
+      },
+      {
+        name: "Team Building",
+        url: "https://miro.com/templates/team-building/",
+        description: "Strengthen team relationships and collaboration"
+      }
+    ]
+  },
   "brainstorming": {
     keywords: [
       "ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts",
       "mind map", "creative thinking", "generate ideas", "explore options",
       "think outside", "creative session", "idea generation"
     ],
+    semanticDescription: "Tools and frameworks for generating, organizing, and developing creative ideas",
     templates: [
       {
         name: "Mind Map",
@@ -23,48 +84,185 @@ const TEMPLATE_CATEGORIES = {
         description: "Visualize ideas and their connections"
       },
       {
-        name: "Brainwriting",
-        url: "https://miro.com/templates/brainwriting/",
-        description: "Generate ideas individually before sharing"
+        name: "Affinity Diagram",
+        url: "https://miro.com/templates/affinity-diagram/",
+        description: "Organize and consolidate information from brainstorming sessions"
       },
       {
         name: "Idea Parking Lot",
         url: "https://miro.com/templates/idea-parking-lot/",
         description: "Capture and organize random ideas"
+      },
+      {
+        name: "Fishbone Diagram",
+        url: "https://miro.com/templates/fishbone-diagram/",
+        description: "Identify root causes of problems"
+      },
+      {
+        name: "Likert Scale",
+        url: "https://miro.com/templates/likert-scale/",
+        description: "Measure subjective data and gather feedback"
+      },
+      {
+        name: "Brainwriting",
+        url: "https://miro.com/templates/brainwriting/",
+        description: "Generate ideas individually before sharing"
+      },
+      {
+        name: "SCAMPER",
+        url: "https://miro.com/templates/scamper/",
+        description: "Use SCAMPER technique for creative thinking"
+      },
+      {
+        name: "Six Thinking Hats",
+        url: "https://miro.com/templates/six-thinking-hats/",
+        description: "Explore different perspectives in problem-solving"
+      },
+      {
+        name: "Random Word",
+        url: "https://miro.com/templates/random-word/",
+        description: "Use random words to spark new ideas"
+      },
+      {
+        name: "Reverse Brainstorming",
+        url: "https://miro.com/templates/reverse-brainstorming/",
+        description: "Solve problems by thinking in reverse"
       }
     ]
   },
-  "planning": {
+  "research": {
     keywords: [
-      "plan", "roadmap", "timeline", "schedule", "strategy", "goals", "objectives",
-      "milestone", "gantt", "planning session", "next steps", "action items",
-      "deliverables", "due dates", "priorities", "project plan"
+      "research", "user research", "market research", "customer insights",
+      "user experience", "ux", "design research", "user testing",
+      "customer journey", "persona", "user feedback"
     ],
+    semanticDescription: "Tools for conducting and organizing user research, market analysis, and design research",
     templates: [
       {
-        name: "Product Roadmap",
-        url: "https://miro.com/templates/product-roadmap/",
-        description: "Plan product development over time"
+        name: "Customer Journey Map",
+        url: "https://miro.com/templates/customer-journey-map/",
+        description: "Visualize user interactions and pain points"
       },
       {
-        name: "Project Timeline",
-        url: "https://miro.com/templates/project-timeline/",
-        description: "Visualize project phases and milestones"
+        name: "Customer Touchpoint Map",
+        url: "https://miro.com/templates/customer-touchpoint-map/",
+        description: "Map customer interactions across different channels"
       },
       {
-        name: "OKRs Template",
+        name: "Service Blueprint",
+        url: "https://miro.com/templates/service-blueprint/",
+        description: "Design and optimize service experiences"
+      },
+      {
+        name: "User Persona",
+        url: "https://miro.com/templates/user-persona/",
+        description: "Create detailed user profiles and characteristics"
+      },
+      {
+        name: "Empathy Map",
+        url: "https://miro.com/templates/empathy-map/",
+        description: "Understand user needs and emotions"
+      },
+      {
+        name: "User Interview",
+        url: "https://miro.com/templates/user-interview/",
+        description: "Structure and conduct user interviews"
+      },
+      {
+        name: "Usability Testing",
+        url: "https://miro.com/templates/usability-testing/",
+        description: "Plan and conduct usability tests"
+      },
+      {
+        name: "Competitive Analysis",
+        url: "https://miro.com/templates/competitive-analysis/",
+        description: "Analyze competitors and market position"
+      },
+      {
+        name: "Research Synthesis",
+        url: "https://miro.com/templates/research-synthesis/",
+        description: "Organize and synthesize research findings"
+      },
+      {
+        name: "User Research Plan",
+        url: "https://miro.com/templates/user-research-plan/",
+        description: "Plan and organize user research activities"
+      }
+    ]
+  },
+  "strategic_planning": {
+    keywords: [
+      "strategy", "planning", "roadmap", "business model", "goals",
+      "objectives", "vision", "mission", "strategy planning",
+      "business planning", "market analysis"
+    ],
+    semanticDescription: "Frameworks and tools for strategic business planning and analysis",
+    templates: [
+      {
+        name: "Business Model Canvas",
+        url: "https://miro.com/templates/business-model-canvas/",
+        description: "Develop and display your business model"
+      },
+      {
+        name: "Technology Roadmap",
+        url: "https://miro.com/templates/technology-roadmap/",
+        description: "Plan technology implementation and improvements"
+      },
+      {
+        name: "Go-to-Market Strategy",
+        url: "https://miro.com/templates/go-to-market-strategy/",
+        description: "Plan product launch and market entry"
+      },
+      {
+        name: "Marketing Funnel",
+        url: "https://miro.com/templates/marketing-funnel/",
+        description: "Visualize and optimize marketing processes"
+      },
+      {
+        name: "Content Strategy",
+        url: "https://miro.com/templates/content-strategy/",
+        description: "Plan and organize content creation and distribution"
+      },
+      {
+        name: "SWOT Analysis",
+        url: "https://miro.com/templates/swot-analysis/",
+        description: "Analyze strengths, weaknesses, opportunities, and threats"
+      },
+      {
+        name: "Porter's Five Forces",
+        url: "https://miro.com/templates/porters-five-forces/",
+        description: "Analyze competitive forces in your industry"
+      },
+      {
+        name: "Strategic Roadmap",
+        url: "https://miro.com/templates/strategic-roadmap/",
+        description: "Plan long-term strategic initiatives"
+      },
+      {
+        name: "OKRs",
         url: "https://miro.com/templates/okrs/",
         description: "Set and track objectives and key results"
+      },
+      {
+        name: "Vision Board",
+        url: "https://miro.com/templates/vision-board/",
+        description: "Visualize and communicate strategic vision"
       }
     ]
   },
   "agile": {
     keywords: [
-      "sprint", "scrum", "agile", "retrospective", "standup", "backlog", "user stories",
-      "kanban", "velocity", "story points", "sprint planning", "daily standup",
-      "sprint review", "burndown", "epic", "feature", "bug", "technical debt"
+      "sprint", "scrum", "agile", "retrospective", "standup", "backlog",
+      "user stories", "kanban", "velocity", "story points", "sprint planning",
+      "daily standup", "sprint review", "burndown", "epic", "feature"
     ],
+    semanticDescription: "Tools and frameworks for agile project management and development",
     templates: [
+      {
+        name: "Agile Board",
+        url: "https://miro.com/templates/agile-board/",
+        description: "Manage tasks and track progress in agile projects"
+      },
       {
         name: "Sprint Planning",
         url: "https://miro.com/templates/sprint-planning/",
@@ -76,105 +274,98 @@ const TEMPLATE_CATEGORIES = {
         description: "Reflect on team performance and improve"
       },
       {
+        name: "Conversion Funnel Backlog",
+        url: "https://miro.com/templates/conversion-funnel-backlog/",
+        description: "Structure backlog around conversion funnel"
+      },
+      {
+        name: "Kanban Board",
+        url: "https://miro.com/templates/kanban-board/",
+        description: "Visualize and manage workflow"
+      },
+      {
         name: "User Story Mapping",
         url: "https://miro.com/templates/user-story-mapping/",
         description: "Map user journeys and prioritize features"
+      },
+      {
+        name: "Sprint Review",
+        url: "https://miro.com/templates/sprint-review/",
+        description: "Review sprint outcomes and demonstrate work"
+      },
+      {
+        name: "Daily Standup",
+        url: "https://miro.com/templates/daily-standup/",
+        description: "Conduct effective daily standup meetings"
+      },
+      {
+        name: "Agile Roadmap",
+        url: "https://miro.com/templates/agile-roadmap/",
+        description: "Plan and visualize agile project timeline"
+      },
+      {
+        name: "Story Points Estimation",
+        url: "https://miro.com/templates/story-points-estimation/",
+        description: "Estimate story points for user stories"
       }
     ]
   },
-  "design": {
+  "mapping": {
     keywords: [
-      "design", "prototype", "wireframe", "ux", "ui", "user experience", "mockup",
-      "persona", "usability", "user research", "design review", "feedback",
-      "design system", "visual design", "interaction design"
+      "mapping", "diagram", "flowchart", "process", "workflow",
+      "swimlane", "stakeholder", "uml", "system", "architecture"
     ],
+    semanticDescription: "Tools for creating various types of diagrams and visual maps",
     templates: [
       {
-        name: "Wireframe Kit",
-        url: "https://miro.com/templates/wireframe-kit/",
-        description: "Create low-fidelity wireframes"
+        name: "UML Diagram",
+        url: "https://miro.com/templates/uml-diagram/",
+        description: "Model business processes and software architecture"
       },
       {
-        name: "Design System",
-        url: "https://miro.com/templates/design-system/",
-        description: "Document design components and guidelines"
+        name: "Swimlane Diagram",
+        url: "https://miro.com/templates/swimlane-diagram/",
+        description: "Map processes across different stakeholders"
       },
       {
-        name: "User Journey Map",
-        url: "https://miro.com/templates/user-journey-map/",
-        description: "Visualize user interactions and pain points"
-      }
-    ]
-  },
-  "analysis": {
-    keywords: [
-      "analysis", "research", "data", "insights", "swot", "competitive", "market",
-      "metrics", "kpi", "findings", "results", "conclusions", "recommendations",
-      "pain points", "opportunities", "challenges", "risks"
-    ],
-    templates: [
-      {
-        name: "SWOT Analysis",
-        url: "https://miro.com/templates/swot-analysis/",
-        description: "Analyze strengths, weaknesses, opportunities, threats"
+        name: "Stakeholder Mapping",
+        url: "https://miro.com/templates/stakeholder-mapping/",
+        description: "Analyze and organize stakeholder relationships"
       },
       {
-        name: "Competitive Analysis",
-        url: "https://miro.com/templates/competitive-analysis/",
-        description: "Compare competitors and market position"
+        name: "Flowchart",
+        url: "https://miro.com/templates/flowchart/",
+        description: "Visualize processes and workflows"
       },
       {
-        name: "Research Synthesis",
-        url: "https://miro.com/templates/research-synthesis/",
-        description: "Organize and synthesize research findings"
-      }
-    ]
-  },
-  "workshops": {
-    keywords: [
-      "workshop", "facilitation", "meeting", "collaboration", "team building",
-      "icebreaker", "session", "attendees", "participants", "discussion",
-      "facilitated", "breakout", "group exercise", "team activity"
-    ],
-    templates: [
-      {
-        name: "Icebreaker Activities",
-        url: "https://miro.com/templates/icebreaker-activities/",
-        description: "Energize your team and break the ice"
+        name: "Process Map",
+        url: "https://miro.com/templates/process-map/",
+        description: "Document and analyze business processes"
       },
       {
-        name: "Workshop Agenda",
-        url: "https://miro.com/templates/workshop-agenda/",
-        description: "Structure your workshop sessions"
+        name: "System Architecture",
+        url: "https://miro.com/templates/system-architecture/",
+        description: "Design and document system architecture"
       },
       {
-        name: "Team Charter",
-        url: "https://miro.com/templates/team-charter/",
-        description: "Define team purpose, roles, and working agreements"
-      }
-    ]
-  },
-  "meetings": {
-    keywords: [
-      "meeting", "discussion", "decisions", "follow up", "takeaways", "notes",
-      "attendees", "agenda", "minutes", "summary", "next meeting", "agreed",
-      "decided", "discussed", "reviewed", "presented"
-    ],
-    templates: [
-      {
-        name: "Meeting Notes Template",
-        url: "https://miro.com/templates/meeting-notes/",
-        description: "Capture and organize meeting discussions"
+        name: "Network Diagram",
+        url: "https://miro.com/templates/network-diagram/",
+        description: "Visualize network infrastructure and connections"
       },
       {
-        name: "Decision Matrix",
-        url: "https://miro.com/templates/decision-matrix/",
-        description: "Evaluate options and make informed decisions"
+        name: "ERD Diagram",
+        url: "https://miro.com/templates/erd-diagram/",
+        description: "Design and document database relationships"
       },
       {
-        name: "Action Item Tracker",
-        url: "https://miro.com/templates/action-item-tracker/",
-        description: "Track follow-up tasks and ownership"
+        name: "Sequence Diagram",
+        url: "https://miro.com/templates/sequence-diagram/",
+        description: "Model interactions between system components"
+      },
+      {
+        name: "State Diagram",
+        url: "https://miro.com/templates/state-diagram/",
+        description: "Model system states and transitions"
       }
     ]
   }
