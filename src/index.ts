@@ -6,11 +6,16 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import axios from 'axios';
 
-// Miro template categories and their common use cases
+// Enhanced template categories with meeting-specific keywords
 const TEMPLATE_CATEGORIES = {
   "brainstorming": {
-    keywords: ["ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts"],
+    keywords: [
+      "ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts",
+      "mind map", "creative thinking", "generate ideas", "explore options",
+      "think outside", "creative session", "idea generation"
+    ],
     templates: [
       {
         name: "Mind Map",
@@ -30,7 +35,11 @@ const TEMPLATE_CATEGORIES = {
     ]
   },
   "planning": {
-    keywords: ["plan", "roadmap", "timeline", "schedule", "strategy", "goals", "objectives"],
+    keywords: [
+      "plan", "roadmap", "timeline", "schedule", "strategy", "goals", "objectives",
+      "milestone", "gantt", "planning session", "next steps", "action items",
+      "deliverables", "due dates", "priorities", "project plan"
+    ],
     templates: [
       {
         name: "Product Roadmap",
@@ -50,7 +59,11 @@ const TEMPLATE_CATEGORIES = {
     ]
   },
   "agile": {
-    keywords: ["sprint", "scrum", "agile", "retrospective", "standup", "backlog", "user stories"],
+    keywords: [
+      "sprint", "scrum", "agile", "retrospective", "standup", "backlog", "user stories",
+      "kanban", "velocity", "story points", "sprint planning", "daily standup",
+      "sprint review", "burndown", "epic", "feature", "bug", "technical debt"
+    ],
     templates: [
       {
         name: "Sprint Planning",
@@ -70,7 +83,11 @@ const TEMPLATE_CATEGORIES = {
     ]
   },
   "design": {
-    keywords: ["design", "prototype", "wireframe", "ux", "ui", "user experience", "mockup"],
+    keywords: [
+      "design", "prototype", "wireframe", "ux", "ui", "user experience", "mockup",
+      "persona", "usability", "user research", "design review", "feedback",
+      "design system", "visual design", "interaction design"
+    ],
     templates: [
       {
         name: "Wireframe Kit",
@@ -90,7 +107,11 @@ const TEMPLATE_CATEGORIES = {
     ]
   },
   "analysis": {
-    keywords: ["analysis", "research", "data", "insights", "swot", "competitive", "market"],
+    keywords: [
+      "analysis", "research", "data", "insights", "swot", "competitive", "market",
+      "metrics", "kpi", "findings", "results", "conclusions", "recommendations",
+      "pain points", "opportunities", "challenges", "risks"
+    ],
     templates: [
       {
         name: "SWOT Analysis",
@@ -110,7 +131,11 @@ const TEMPLATE_CATEGORIES = {
     ]
   },
   "workshops": {
-    keywords: ["workshop", "facilitation", "meeting", "collaboration", "team building"],
+    keywords: [
+      "workshop", "facilitation", "meeting", "collaboration", "team building",
+      "icebreaker", "session", "attendees", "participants", "discussion",
+      "facilitated", "breakout", "group exercise", "team activity"
+    ],
     templates: [
       {
         name: "Icebreaker Activities",
@@ -128,24 +153,145 @@ const TEMPLATE_CATEGORIES = {
         description: "Define team purpose, roles, and working agreements"
       }
     ]
+  },
+  "meetings": {
+    keywords: [
+      "meeting", "discussion", "decisions", "follow up", "takeaways", "notes",
+      "attendees", "agenda", "minutes", "summary", "next meeting", "agreed",
+      "decided", "discussed", "reviewed", "presented"
+    ],
+    templates: [
+      {
+        name: "Meeting Notes Template",
+        url: "https://miro.com/templates/meeting-notes/",
+        description: "Capture and organize meeting discussions"
+      },
+      {
+        name: "Decision Matrix",
+        url: "https://miro.com/templates/decision-matrix/",
+        description: "Evaluate options and make informed decisions"
+      },
+      {
+        name: "Action Item Tracker",
+        url: "https://miro.com/templates/action-item-tracker/",
+        description: "Track follow-up tasks and ownership"
+      }
+    ]
   }
 } as const;
 
 type TemplateCategory = keyof typeof TEMPLATE_CATEGORIES;
 
-type Template = {
+interface MiroItem {
+  id: string;
+  type: string;
+  data: {
+    content?: string;
+    text?: string;
+    title?: string;
+  };
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
+interface MiroBoardInfo {
+  id: string;
   name: string;
-  url: string;
-  description: string;
-};
+  description?: string;
+  items: MiroItem[];
+}
+
+class MiroClient {
+  private accessToken: string;
+  private baseUrl = 'https://api.miro.com/v2';
+
+  constructor(accessToken: string) {
+    this.accessToken = accessToken;
+  }
+
+  private async makeRequest(endpoint: string): Promise<any> {
+    try {
+      const response = await axios.get(`${this.baseUrl}${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText}`);
+      }
+      throw error;
+    }
+  }
+
+  async getBoardInfo(boardId: string): Promise<MiroBoardInfo> {
+    try {
+      const boardResponse = await this.makeRequest(`/boards/${boardId}`);
+      const itemsResponse = await this.makeRequest(`/boards/${boardId}/items`);
+
+      return {
+        id: boardResponse.id,
+        name: boardResponse.name,
+        description: boardResponse.description,
+        items: itemsResponse.data || []
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch board info: ${(error as Error).message}`);
+    }
+  }
+
+  async getBoardContent(boardId: string): Promise<string[]> {
+    try {
+      const boardInfo = await this.getBoardInfo(boardId);
+      const content: string[] = [];
+
+      for (const item of boardInfo.items) {
+        const textContent = this.extractTextFromItem(item);
+        if (textContent) {
+          content.push(textContent);
+        }
+      }
+
+      if (boardInfo.name) {
+        content.unshift(boardInfo.name);
+      }
+      if (boardInfo.description) {
+        content.push(boardInfo.description);
+      }
+
+      return content;
+    } catch (error) {
+      throw new Error(`Failed to extract board content: ${(error as Error).message}`);
+    }
+  }
+
+  private extractTextFromItem(item: MiroItem): string | null {
+    switch (item.type) {
+      case 'text':
+      case 'sticky_note':
+        return item.data.content || item.data.text || null;
+      case 'shape':
+        return item.data.content || null;
+      case 'card':
+        return item.data.title || item.data.content || null;
+      default:
+        return item.data.content || item.data.text || item.data.title || null;
+    }
+  }
+}
 
 class MiroTemplateRecommenderServer {
   private server: Server;
+  private miroClient?: MiroClient;
 
   constructor() {
     this.server = new Server({
       name: "miro-template-recommender",
-      version: "0.1.0",
+      version: "0.2.0",
       capabilities: {
         tools: {},
       },
@@ -153,7 +299,6 @@ class MiroTemplateRecommenderServer {
 
     this.setupToolHandlers();
     
-    // Error handling
     this.server.onerror = (error) => console.error("[MCP Error]", error);
     process.on("SIGINT", async () => {
       await this.server.close();
@@ -164,6 +309,34 @@ class MiroTemplateRecommenderServer {
   private setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
+        {
+          name: "get_board_content",
+          description: "Get all text content from a Miro board as an array of strings",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: {
+                type: "string",
+                description: "The Miro board ID (e.g., uXjVKMOJbXg=)"
+              }
+            },
+            required: ["boardId"]
+          }
+        },
+        {
+          name: "get_all_items",
+          description: "Get all items from a Miro board (not just text)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: {
+                type: "string",
+                description: "The Miro board ID"
+              }
+            },
+            required: ["boardId"]
+          }
+        },
         {
           name: "recommend_miro_templates",
           description: "Analyze Miro board content and recommend relevant Miro templates",
@@ -181,6 +354,25 @@ class MiroTemplateRecommenderServer {
               }
             },
             required: ["boardId"]
+          }
+        },
+        {
+          name: "analyze_meeting_notes",
+          description: "Analyze meeting notes text and recommend relevant Miro templates",
+          inputSchema: {
+            type: "object",
+            properties: {
+              meetingNotes: {
+                type: "string",
+                description: "The meeting notes text to analyze"
+              },
+              maxRecommendations: {
+                type: "number",
+                description: "Maximum number of template recommendations (default: 5)",
+                default: 5
+              }
+            },
+            required: ["meetingNotes"]
           }
         },
         {
@@ -202,8 +394,14 @@ class MiroTemplateRecommenderServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       switch (request.params.name) {
+        case "get_board_content":
+          return this.getBoardContent(request.params.arguments);
+        case "get_all_items":
+          return this.getAllItems(request.params.arguments);
         case "recommend_miro_templates":
           return this.recommendTemplates(request.params.arguments);
+        case "analyze_meeting_notes":
+          return this.analyzeMeetingNotes(request.params.arguments);
         case "get_board_analysis":
           return this.analyzeBoardContent(request.params.arguments);
         default:
@@ -212,24 +410,192 @@ class MiroTemplateRecommenderServer {
     });
   }
 
-  private async getMiroBoardContent(boardId: string): Promise<string[]> {
-    // In a real implementation, you would use the Miro API
-    // For now, we'll simulate this with mock data
-    // You would need to implement actual Miro API calls here
+  private async getBoardContent(args: any) {
+    try {
+      const { boardId } = args;
+      
+      if (!this.miroClient) {
+        // Fallback to mock data if no API token
+        const mockContent = [
+          "Sprint planning for Q2 2024",
+          "User story: As a customer, I want to track my order",
+          "Retrospective action items",
+          "Design system components"
+        ];
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(mockContent, null, 2)
+          }]
+        };
+      }
+
+      const content = await this.miroClient.getBoardContent(boardId);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(content, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error fetching board content: ${(error as Error).message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async getAllItems(args: any) {
+    try {
+      const { boardId } = args;
+      
+      if (!this.miroClient) {
+        const mockItems = [
+          { id: "1", type: "sticky_note", data: { content: "Sprint planning for Q2 2024" }, position: { x: 0, y: 0 } },
+          { id: "2", type: "text", data: { content: "User story: As a customer, I want to track my order" }, position: { x: 100, y: 100 } }
+        ];
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(mockItems, null, 2)
+          }]
+        };
+      }
+
+      const boardInfo = await this.miroClient.getBoardInfo(boardId);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(boardInfo.items, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error fetching board items: ${(error as Error).message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async analyzeMeetingNotes(args: any) {
+    try {
+      const { meetingNotes, maxRecommendations = 5 } = args;
+      
+      // Parse meeting notes into analyzable content
+      const content = this.parseMeetingNotes(meetingNotes);
+      
+      // Analyze content
+      const analysis = this.analyzeContent(content);
+      
+      // Generate recommendations
+      const recommendations = this.generateRecommendations(analysis, maxRecommendations);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            contentType: "meeting_notes",
+            analysis: {
+              detectedKeywords: analysis.keywords,
+              identifiedCategories: analysis.categories,
+              context: analysis.context,
+              extractedContent: content
+            },
+            recommendations
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error analyzing meeting notes: ${(error as Error).message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private parseMeetingNotes(meetingNotes: string): string[] {
+    // Split meeting notes into meaningful chunks
+    const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
+    const content: string[] = [];
     
-    // Mock implementation - replace with actual Miro API calls
-    const mockContent = [
-      "Sprint planning for Q2 2024",
-      "User story: As a customer, I want to track my order",
-      "Retrospective action items",
-      "Design system components",
-      "Market research findings",
-      "Competitive analysis matrix",
-      "Brainstorming session notes",
-      "Product roadmap milestones"
-    ];
+    // Extract different sections and content types
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      
+      // Skip very short lines (likely formatting)
+      if (trimmedLine.length < 3) return;
+      
+      // Remove common prefixes and clean up
+      const cleanedLine = trimmedLine
+        .replace(/^[-*•]\s*/, '') // Remove bullet points
+        .replace(/^\d+\.\s*/, '') // Remove numbered lists
+        .replace(/^#{1,6}\s*/, '') // Remove markdown headers
+        .trim();
+      
+      if (cleanedLine.length > 0) {
+        content.push(cleanedLine);
+      }
+    });
     
-    return mockContent;
+    return content;
+  }
+
+  private async recommendTemplates(args: any) {
+    try {
+      const { boardId, maxRecommendations = 5 } = args;
+      
+      // Get board content
+      let boardContent: string[];
+      if (!this.miroClient) {
+        boardContent = [
+          "Sprint planning for Q2 2024",
+          "User story: As a customer, I want to track my order",
+          "Retrospective action items",
+          "Design system components"
+        ];
+      } else {
+        boardContent = await this.miroClient.getBoardContent(boardId);
+      }
+      
+      // Analyze content
+      const analysis = this.analyzeContent(boardContent);
+      
+      // Generate recommendations
+      const recommendations = this.generateRecommendations(analysis, maxRecommendations);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            boardId,
+            contentType: "miro_board",
+            analysis: {
+              detectedKeywords: analysis.keywords,
+              identifiedCategories: analysis.categories,
+              context: analysis.context
+            },
+            recommendations
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error recommending templates: ${(error as Error).message}`
+        }],
+        isError: true
+      };
+    }
   }
 
   private analyzeContent(content: string[]): {
@@ -239,171 +605,144 @@ class MiroTemplateRecommenderServer {
   } {
     const allText = content.join(" ").toLowerCase();
     const foundKeywords: string[] = [];
-    const matchedCategories: TemplateCategory[] = [];
+    const categoryScores: { [key: string]: number } = {};
 
-    // Analyze content against template categories
+    // Enhanced matching with scoring
     for (const [category, categoryData] of Object.entries(TEMPLATE_CATEGORIES)) {
-      const matchingKeywords = categoryData.keywords.filter(keyword => 
+      const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category as TemplateCategory]?.keywords ?? [];
+      const matchingKeywords = categoryKeywords.filter(keyword => 
         allText.includes(keyword.toLowerCase())
       );
       
       if (matchingKeywords.length > 0) {
         foundKeywords.push(...matchingKeywords);
-        matchedCategories.push(category as TemplateCategory);
+        categoryScores[category] = matchingKeywords.length;
       }
     }
 
-    // Generate context description
-    const context = this.generateContextDescription(allText, matchedCategories);
+    // Sort categories by score
+    const sortedCategories = Object.entries(categoryScores)
+      .sort(([,a], [,b]) => b - a)
+      .map(([category]) => category as TemplateCategory);
+
+    const context = this.generateContextDescription(sortedCategories);
 
     return {
       keywords: [...new Set(foundKeywords)],
-      categories: matchedCategories,
+      categories: sortedCategories,
       context
     };
   }
 
-  private generateContextDescription(text: string, categories: TemplateCategory[]): string {
-    const contexts: string[] = [];
+  private generateRecommendations(
+    analysis: { keywords: string[]; categories: TemplateCategory[]; context: string },
+    maxRecommendations: number
+  ) {
+    const recommendations: any[] = [];
     
-    if (categories.includes("agile")) {
-      contexts.push("Agile/Scrum methodology");
-    }
-    if (categories.includes("design")) {
-      contexts.push("Design and UX work");
-    }
-    if (categories.includes("planning")) {
-      contexts.push("Strategic planning");
-    }
-    if (categories.includes("brainstorming")) {
-      contexts.push("Ideation and creativity");
-    }
-    if (categories.includes("analysis")) {
-      contexts.push("Research and analysis");
-    }
-    if (categories.includes("workshops")) {
-      contexts.push("Team collaboration and workshops");
+    for (const category of analysis.categories) {
+      const categoryTemplates = TEMPLATE_CATEGORIES[category]?.templates || [];
+      recommendations.push(...categoryTemplates.map((template: any) => ({
+        ...template,
+        category,
+        relevanceScore: this.calculateRelevanceScore(analysis.keywords, category)
+      })));
     }
 
-    return contexts.length > 0 
-      ? `Board appears to focus on: ${contexts.join(", ")}`
-      : "General collaborative work";
+    return recommendations
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, maxRecommendations)
+      .map(rec => ({
+        name: rec.name,
+        url: rec.url,
+        description: rec.description,
+        category: rec.category,
+        relevanceScore: rec.relevanceScore
+      }));
   }
 
-  private async recommendTemplates(args: any) {
-    try {
-      const { boardId, maxRecommendations = 5 } = args;
-      
-      // Get board content
-      const boardContent = await this.getMiroBoardContent(boardId);
-      
-      // Analyze content
-      const analysis = this.analyzeContent(boardContent);
-      
-      // Generate recommendations
-      const recommendations: any[] = [];
-      
-      for (const category of analysis.categories) {
-        const categoryTemplates = TEMPLATE_CATEGORIES[category]?.templates || [];
-        recommendations.push(...categoryTemplates.map((template: Template) => ({
-          ...template,
-          category,
-          relevanceScore: this.calculateRelevanceScore(analysis.keywords, category)
-        })));
-      }
+  private generateContextDescription(categories: TemplateCategory[]): string {
+    const contextMap: { [key: string]: string } = {
+      "agile": "Agile/Scrum methodology",
+      "design": "Design and UX work", 
+      "planning": "Strategic planning",
+      "brainstorming": "Ideation and creativity",
+      "analysis": "Research and analysis",
+      "workshops": "Team collaboration and workshops",
+      "meetings": "Meeting management and follow-up"
+    };
 
-      // Sort by relevance and limit results
-      const sortedRecommendations = recommendations
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, maxRecommendations);
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              boardId,
-              analysis: {
-                detectedKeywords: analysis.keywords,
-                identifiedCategories: analysis.categories,
-                context: analysis.context
-              },
-              recommendations: sortedRecommendations.map(rec => ({
-                name: rec.name,
-                url: rec.url,
-                description: rec.description,
-                category: rec.category,
-                relevanceScore: rec.relevanceScore
-              }))
-            }, null, 2)
-          }
-        ]
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error recommending templates: ${(error as Error).message}`
-          }
-        ],
-        isError: true
-      };
-    }
+    const contexts = categories.slice(0, 3).map(cat => contextMap[cat]).filter(Boolean);
+    
+    return contexts.length > 0 
+      ? `Content appears to focus on: ${contexts.join(", ")}`
+      : "General collaborative work";
   }
 
   private async analyzeBoardContent(args: any) {
     try {
       const { boardId } = args;
       
-      // Get board content
-      const boardContent = await this.getMiroBoardContent(boardId);
+      let boardContent: string[];
+      if (!this.miroClient) {
+        boardContent = [
+          "Sprint planning for Q2 2024",
+          "User story: As a customer, I want to track my order",
+          "Retrospective action items"
+        ];
+      } else {
+        boardContent = await this.miroClient.getBoardContent(boardId);
+      }
       
-      // Analyze content
       const analysis = this.analyzeContent(boardContent);
       
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              boardId,
-              contentSummary: {
-                itemCount: boardContent.length,
-                items: boardContent
-              },
-              analysis: {
-                detectedKeywords: analysis.keywords,
-                identifiedCategories: analysis.categories,
-                context: analysis.context
-              }
-            }, null, 2)
-          }
-        ]
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            boardId,
+            contentSummary: {
+              itemCount: boardContent.length,
+              items: boardContent
+            },
+            analysis: {
+              detectedKeywords: analysis.keywords,
+              identifiedCategories: analysis.categories,
+              context: analysis.context
+            }
+          }, null, 2)
+        }]
       };
     } catch (error) {
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error analyzing board: ${(error as Error).message}`
-          }
-        ],
+        content: [{
+          type: "text",
+          text: `Error analyzing board: ${(error as Error).message}`
+        }],
         isError: true
       };
     }
   }
 
-  private calculateRelevanceScore(keywords: string[], category: TemplateCategory): number {
-    const categoryKeywords = TEMPLATE_CATEGORIES[category]?.keywords || [];
-    const matches = keywords.filter(k => Array.from(categoryKeywords).map(x => x as string).includes(k)).length;
-    return matches / categoryKeywords.length;
-  }
+    private calculateRelevanceScore(keywords: string[], category: TemplateCategory): number {
+      const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category]?.keywords ?? [];
+      const matches = keywords.filter((k) => categoryKeywords.includes(k)).length;
+      return matches / categoryKeywords.length;
+    }
 
   async run() {
+    // Initialize Miro client if access token is provided
+    const accessToken = process.env.MIRO_ACCESS_TOKEN;
+    if (accessToken) {
+      this.miroClient = new MiroClient(accessToken);
+      console.error("Miro API integration enabled");
+    } else {
+      console.error("No Miro access token found, using mock data");
+    }
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("Miro Template Recommender MCP server running on stdio");
+    console.error("Enhanced Miro Template Recommender MCP server running on stdio");
   }
 }
 
