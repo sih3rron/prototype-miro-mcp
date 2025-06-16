@@ -244,6 +244,20 @@ class MiroClient {
     }
   }
 
+  private extractTextFromItem(item: MiroItem): string | null {
+    switch (item.type) {
+      case 'text':
+      case 'sticky_note':
+        return item.data.content || item.data.text || null;
+      case 'shape':
+        return item.data.content || null;
+      case 'card':
+        return item.data.title || item.data.content || null;
+      default:
+        return item.data.content || item.data.text || item.data.title || null;
+    }
+  }
+
   async getBoardContent(boardId: string): Promise<string[]> {
     try {
       const boardInfo = await this.getBoardInfo(boardId);
@@ -268,20 +282,6 @@ class MiroClient {
       throw new Error(`Failed to extract board content: ${(error as Error).message}`);
     }
   }
-
-  private extractTextFromItem(item: MiroItem): string | null {
-    switch (item.type) {
-      case 'text':
-      case 'sticky_note':
-        return item.data.content || item.data.text || null;
-      case 'shape':
-        return item.data.content || null;
-      case 'card':
-        return item.data.title || item.data.content || null;
-      default:
-        return item.data.content || item.data.text || item.data.title || null;
-    }
-  }
 }
 
 class MiroTemplateRecommenderServer {
@@ -291,7 +291,7 @@ class MiroTemplateRecommenderServer {
   constructor() {
     this.server = new Server({
       name: "miro-template-recommender",
-      version: "0.2.0",
+      version: "0.3.0",
       capabilities: {
         tools: {},
       },
@@ -338,44 +338,6 @@ class MiroTemplateRecommenderServer {
           }
         },
         {
-          name: "recommend_miro_templates",
-          description: "Analyze Miro board content and recommend relevant Miro templates",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: {
-                type: "string",
-                description: "The Miro board ID to analyze"
-              },
-              maxRecommendations: {
-                type: "number",
-                description: "Maximum number of template recommendations (default: 5)",
-                default: 5
-              }
-            },
-            required: ["boardId"]
-          }
-        },
-        {
-          name: "analyze_meeting_notes",
-          description: "Analyze meeting notes text and recommend relevant Miro templates",
-          inputSchema: {
-            type: "object",
-            properties: {
-              meetingNotes: {
-                type: "string",
-                description: "The meeting notes text to analyze"
-              },
-              maxRecommendations: {
-                type: "number",
-                description: "Maximum number of template recommendations (default: 5)",
-                default: 5
-              }
-            },
-            required: ["meetingNotes"]
-          }
-        },
-        {
           name: "get_board_analysis",
           description: "Get detailed analysis of a Miro board's content and context",
           inputSchema: {
@@ -390,13 +352,19 @@ class MiroTemplateRecommenderServer {
           }
         },
         {
-          name: "auto_recommend_templates",
-          description: "Recommend Miro templates based on either a Miro board or meeting notes text.",
+          name: "recommend_templates",
+          description: "Recommend Miro templates based on content analysis (supports both Miro board and meeting notes)",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID to analyze" },
-              meetingNotes: { type: "string", description: "The meeting notes text to analyze" },
+              boardId: {
+                type: "string",
+                description: "The Miro board ID to analyze"
+              },
+              meetingNotes: {
+                type: "string", 
+                description: "Meeting notes text to analyze"
+              },
               maxRecommendations: {
                 type: "number",
                 description: "Maximum number of template recommendations (default: 5)",
@@ -413,154 +381,178 @@ class MiroTemplateRecommenderServer {
     }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      switch (request.params.name) {
-        case "get_board_content":
-          return this.getBoardContent(request.params.arguments);
-        case "get_all_items":
-          return this.getAllItems(request.params.arguments);
-        case "recommend_miro_templates":
-          return this.recommendTemplates(request.params.arguments);
-        case "analyze_meeting_notes":
-          return this.analyzeMeetingNotes(request.params.arguments);
-        case "get_board_analysis":
-          return this.analyzeBoardContent(request.params.arguments);
-        case "auto_recommend_templates":
-          return this.autoRecommendTemplates(request.params.arguments);
-        default:
-          throw new Error(`Unknown tool: ${request.params.name}`);
+      try {
+        switch (request.params.name) {
+          case "get_board_content":
+            return await this.getBoardContent(request.params.arguments);
+          case "get_all_items":
+            return await this.getAllItems(request.params.arguments);
+          case "get_board_analysis":
+            return await this.getBoardAnalysis(request.params.arguments);
+          case "recommend_templates":
+            return await this.recommendTemplates(request.params.arguments);
+          default:
+            throw new Error(`Unknown tool: ${request.params.name}`);
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: `Error: ${(error as Error).message}`
+          }],
+          isError: true
+        };
       }
     });
   }
 
   private async getBoardContent(args: any) {
-    try {
-      const { boardId } = args;
-      
+    const { boardId } = args;
+    
+    if (!this.miroClient) {
+      const mockContent = [
+        "Sprint planning for Q2 2024",
+        "User story: As a customer, I want to track my order",
+        "Retrospective action items",
+        "Design system components"
+      ];
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(mockContent, null, 2)
+        }]
+      };
+    }
+
+    const content = await this.miroClient.getBoardContent(boardId);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(content, null, 2)
+      }]
+    };
+  }
+
+  private async getAllItems(args: any) {
+    const { boardId } = args;
+    
+    if (!this.miroClient) {
+      const mockItems = [
+        { id: "1", type: "sticky_note", data: { content: "Sprint planning for Q2 2024" }, position: { x: 0, y: 0 } },
+        { id: "2", type: "text", data: { content: "User story: As a customer, I want to track my order" }, position: { x: 100, y: 100 } }
+      ];
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(mockItems, null, 2)
+        }]
+      };
+    }
+
+    const boardInfo = await this.miroClient.getBoardInfo(boardId);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(boardInfo.items, null, 2)
+      }]
+    };
+  }
+
+  private async getBoardAnalysis(args: any) {
+    const { boardId } = args;
+    
+    let boardContent: string[];
+    if (!this.miroClient) {
+      boardContent = [
+        "Sprint planning for Q2 2024",
+        "User story: As a customer, I want to track my order",
+        "Retrospective action items"
+      ];
+    } else {
+      boardContent = await this.miroClient.getBoardContent(boardId);
+    }
+    
+    const analysis = this.analyzeContent(boardContent);
+    
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          boardId,
+          contentSummary: {
+            itemCount: boardContent.length,
+            items: boardContent
+          },
+          analysis: {
+            detectedKeywords: analysis.keywords,
+            identifiedCategories: analysis.categories,
+            context: analysis.context
+          }
+        }, null, 2)
+      }]
+    };
+  }
+
+  private async recommendTemplates(args: any) {
+    const { boardId, meetingNotes, maxRecommendations = 5 } = args;
+    
+    let content: string[];
+    let contentType: string;
+    
+    if (boardId) {
+      // Analyze Miro board
       if (!this.miroClient) {
-        // Fallback to mock data if no API token
-        const mockContent = [
+        content = [
           "Sprint planning for Q2 2024",
           "User story: As a customer, I want to track my order",
           "Retrospective action items",
           "Design system components"
         ];
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(mockContent, null, 2)
-          }]
-        };
+      } else {
+        content = await this.miroClient.getBoardContent(boardId);
       }
-
-      const content = await this.miroClient.getBoardContent(boardId);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(content, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Error fetching board content: ${(error as Error).message}`
-        }],
-        isError: true
-      };
+      contentType = "miro_board";
+    } else if (meetingNotes) {
+      // Analyze meeting notes
+      content = this.parseMeetingNotes(meetingNotes);
+      contentType = "meeting_notes";
+    } else {
+      throw new Error("Please provide either a Miro board ID or meeting notes text.");
     }
-  }
+    
+    const analysis = this.analyzeContent(content);
+    const recommendations = this.generateRecommendations(analysis, maxRecommendations);
 
-  private async getAllItems(args: any) {
-    try {
-      const { boardId } = args;
-      
-      if (!this.miroClient) {
-        const mockItems = [
-          { id: "1", type: "sticky_note", data: { content: "Sprint planning for Q2 2024" }, position: { x: 0, y: 0 } },
-          { id: "2", type: "text", data: { content: "User story: As a customer, I want to track my order" }, position: { x: 100, y: 100 } }
-        ];
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(mockItems, null, 2)
-          }]
-        };
-      }
-
-      const boardInfo = await this.miroClient.getBoardInfo(boardId);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(boardInfo.items, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Error fetching board items: ${(error as Error).message}`
-        }],
-        isError: true
-      };
-    }
-  }
-
-  private async analyzeMeetingNotes(args: any) {
-    try {
-      const { meetingNotes, maxRecommendations = 5 } = args;
-      
-      // Parse meeting notes into analyzable content
-      const content = this.parseMeetingNotes(meetingNotes);
-      
-      // Analyze content
-      const analysis = this.analyzeContent(content);
-      
-      // Generate recommendations
-      const recommendations = this.generateRecommendations(analysis, maxRecommendations);
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            contentType: "meeting_notes",
-            analysis: {
-              detectedKeywords: analysis.keywords,
-              identifiedCategories: analysis.categories,
-              context: analysis.context,
-              extractedContent: content
-            },
-            recommendations
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Error analyzing meeting notes: ${(error as Error).message}`
-        }],
-        isError: true
-      };
-    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ...(boardId && { boardId }),
+          contentType,
+          analysis: {
+            detectedKeywords: analysis.keywords,
+            identifiedCategories: analysis.categories,
+            context: analysis.context,
+            ...(contentType === "meeting_notes" && { extractedContent: content })
+          },
+          recommendations
+        }, null, 2)
+      }]
+    };
   }
 
   private parseMeetingNotes(meetingNotes: string): string[] {
-    // Split meeting notes into meaningful chunks
     const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
     const content: string[] = [];
     
-    // Extract different sections and content types
     lines.forEach(line => {
       const trimmedLine = line.trim();
-      
-      // Skip very short lines (likely formatting)
       if (trimmedLine.length < 3) return;
       
-      // Remove common prefixes and clean up
       const cleanedLine = trimmedLine
-        .replace(/^[-*•]\s*/, '') // Remove bullet points
-        .replace(/^\d+\.\s*/, '') // Remove numbered lists
-        .replace(/^#{1,6}\s*/, '') // Remove markdown headers
+        .replace(/^[-*•]\s*/, '')
+        .replace(/^\d+\.\s*/, '') 
+        .replace(/^#{1,6}\s*/, '')
         .trim();
       
       if (cleanedLine.length > 0) {
@@ -569,55 +561,6 @@ class MiroTemplateRecommenderServer {
     });
     
     return content;
-  }
-
-  private async recommendTemplates(args: any) {
-    try {
-      const { boardId, maxRecommendations = 5 } = args;
-      
-      // Get board content
-      let boardContent: string[];
-      if (!this.miroClient) {
-        boardContent = [
-          "Sprint planning for Q2 2024",
-          "User story: As a customer, I want to track my order",
-          "Retrospective action items",
-          "Design system components"
-        ];
-      } else {
-        boardContent = await this.miroClient.getBoardContent(boardId);
-      }
-      
-      // Analyze content
-      const analysis = this.analyzeContent(boardContent);
-      
-      // Generate recommendations
-      const recommendations = this.generateRecommendations(analysis, maxRecommendations);
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            boardId,
-            contentType: "miro_board",
-            analysis: {
-              detectedKeywords: analysis.keywords,
-              identifiedCategories: analysis.categories,
-              context: analysis.context
-            },
-            recommendations
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Error recommending templates: ${(error as Error).message}`
-        }],
-        isError: true
-      };
-    }
   }
 
   private analyzeContent(content: string[]): {
@@ -629,7 +572,6 @@ class MiroTemplateRecommenderServer {
     const foundKeywords: string[] = [];
     const categoryScores: { [key: string]: number } = {};
 
-    // Enhanced matching with scoring
     for (const [category, categoryData] of Object.entries(TEMPLATE_CATEGORIES)) {
       const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category as TemplateCategory]?.keywords ?? [];
       const matchingKeywords = categoryKeywords.filter(keyword => 
@@ -642,7 +584,6 @@ class MiroTemplateRecommenderServer {
       }
     }
 
-    // Sort categories by score
     const sortedCategories = Object.entries(categoryScores)
       .sort(([,a], [,b]) => b - a)
       .map(([category]) => category as TemplateCategory);
@@ -677,6 +618,7 @@ class MiroTemplateRecommenderServer {
       .map(rec => ({
         name: rec.name,
         url: rec.url,
+        link: `[${rec.name}](${rec.url})`,
         description: rec.description,
         category: rec.category,
         relevanceScore: rec.relevanceScore
@@ -701,76 +643,13 @@ class MiroTemplateRecommenderServer {
       : "General collaborative work";
   }
 
-  private async analyzeBoardContent(args: any) {
-    try {
-      const { boardId } = args;
-      
-      let boardContent: string[];
-      if (!this.miroClient) {
-        boardContent = [
-          "Sprint planning for Q2 2024",
-          "User story: As a customer, I want to track my order",
-          "Retrospective action items"
-        ];
-      } else {
-        boardContent = await this.miroClient.getBoardContent(boardId);
-      }
-      
-      const analysis = this.analyzeContent(boardContent);
-      
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            boardId,
-            contentSummary: {
-              itemCount: boardContent.length,
-              items: boardContent
-            },
-            analysis: {
-              detectedKeywords: analysis.keywords,
-              identifiedCategories: analysis.categories,
-              context: analysis.context
-            }
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Error analyzing board: ${(error as Error).message}`
-        }],
-        isError: true
-      };
-    }
-  }
-
-    private calculateRelevanceScore(keywords: string[], category: TemplateCategory): number {
-      const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category]?.keywords ?? [];
-      const matches = keywords.filter((k) => categoryKeywords.includes(k)).length;
-      return matches / categoryKeywords.length;
-    }
-
-  private async autoRecommendTemplates(args: any) {
-    const { boardId, meetingNotes, maxRecommendations = 5 } = args;
-    if (boardId) {
-      return this.recommendTemplates({ boardId, maxRecommendations });
-    } else if (meetingNotes) {
-      return this.analyzeMeetingNotes({ meetingNotes, maxRecommendations });
-    } else {
-      return {
-        content: [{
-          type: "text",
-          text: "Please provide either a Miro board ID or meeting notes text."
-        }],
-        isError: true
-      };
-    }
+  private calculateRelevanceScore(keywords: string[], category: TemplateCategory): number {
+    const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category]?.keywords ?? [];
+    const matches = keywords.filter((k) => categoryKeywords.includes(k)).length;
+    return matches / categoryKeywords.length;
   }
 
   async run() {
-    // Initialize Miro client if access token is provided
     const accessToken = process.env.MIRO_ACCESS_TOKEN;
     if (accessToken) {
       this.miroClient = new MiroClient(accessToken);
