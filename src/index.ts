@@ -7,6 +7,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Enhanced template categories with meeting-specific keywords
 const TEMPLATE_CATEGORIES = {
