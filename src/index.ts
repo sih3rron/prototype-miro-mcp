@@ -22,12 +22,12 @@ const TEMPLATE_CATEGORIES = {
     templates: [
       {
         name: "Workshop Agenda",
-        url: "https://miro.com/templates/workshop-agenda/",
+        url: "https://miro.com/templates/meeting-agenda/",
         description: "Structure your workshop sessions effectively"
       },
       {
         name: "Icebreaker Activities",
-        url: "https://miro.com/templates/icebreaker-activities/",
+        url: "https://miro.com/templates/workshop-icebreaker-activities/",
         description: "Energize your team and break the ice"
       },
       {
@@ -52,23 +52,18 @@ const TEMPLATE_CATEGORIES = {
       },
       {
         name: "Parking Lot Matrix",
-        url: "https://miro.com/templates/parking-lot-matrix/",
+        url: "https://miro.com/templates/ideas-parking-lot-matrix/",
         description: "Organize and prioritize ideas during meetings"
       },
       {
         name: "Design Sprint",
-        url: "https://miro.com/templates/design-sprint/",
+        url: "https://miro.com/templates/5-day-design-sprint/",
         description: "Run a 5-day design sprint workshop"
       },
       {
-        name: "Remote Workshop",
-        url: "https://miro.com/templates/remote-workshop/",
-        description: "Facilitate effective remote workshops"
-      },
-      {
-        name: "Team Building",
-        url: "https://miro.com/templates/team-building/",
-        description: "Strengthen team relationships and collaboration"
+        name: "Meet the Team Template",
+        url: "https://miro.com/templates/meet-the-team/",
+        description: "Highlight your team members by showcasing their talents and expertise."
       }
     ]
   },
@@ -91,9 +86,9 @@ const TEMPLATE_CATEGORIES = {
         description: "Organize and consolidate information from brainstorming sessions"
       },
       {
-        name: "Idea Parking Lot",
-        url: "https://miro.com/templates/idea-parking-lot/",
-        description: "Capture and organize random ideas"
+        name: "Parking Lot Matrix Template",
+        url: "https://miro.com/templates/ideas-parking-lot-matrix/",
+        description: "Keep team meetings focused by managing ideas, distractions, and side discussions."
       },
       {
         name: "Fishbone Diagram",
@@ -121,9 +116,9 @@ const TEMPLATE_CATEGORIES = {
         description: "Explore different perspectives in problem-solving"
       },
       {
-        name: "Random Word",
-        url: "https://miro.com/templates/random-word/",
-        description: "Use random words to spark new ideas"
+        name: "Random Words",
+        url: "https://miro.com/templates/random-words/",
+        description: "Generate new ideas, solve problems, and create clearer solutions outside your comfort zone."
       },
       {
         name: "Reverse Brainstorming",
