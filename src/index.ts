@@ -152,7 +152,7 @@ const TEMPLATE_CATEGORIES = {
       },
       {
         name: "User Persona",
-        url: "https://miro.com/templates/user-persona/",
+        url: "https://miro.com/templates/personas/",
         description: "Create detailed user profiles and characteristics"
       },
       {
@@ -166,23 +166,18 @@ const TEMPLATE_CATEGORIES = {
         description: "Structure and conduct user interviews"
       },
       {
-        name: "Usability Testing",
-        url: "https://miro.com/templates/usability-testing/",
-        description: "Plan and conduct usability tests"
-      },
-      {
         name: "Competitive Analysis",
         url: "https://miro.com/templates/competitive-analysis/",
         description: "Analyze competitors and market position"
       },
       {
-        name: "Research Synthesis",
-        url: "https://miro.com/templates/research-synthesis/",
+        name: "Research Insights Synthesis",
+        url: "https://miro.com/templates/research-insight-synthesis/",
         description: "Organize and synthesize research findings"
       },
       {
-        name: "User Research Plan",
-        url: "https://miro.com/templates/user-research-plan/",
+        name: "User Research Kick-Off Canvas",
+        url: "https://miro.com/templates/user-research-kick-off-canvas/",
         description: "Plan and organize user research activities"
       }
     ]
@@ -231,14 +226,14 @@ const TEMPLATE_CATEGORIES = {
         description: "Analyze competitive forces in your industry"
       },
       {
-        name: "Strategic Roadmap",
-        url: "https://miro.com/templates/strategic-roadmap/",
-        description: "Plan long-term strategic initiatives"
+        name: "Thematic Roadmapping (Vision & Strategy)",
+        url: "https://miro.com/templates/thematic-roadmapping-vision-strategy/",
+        description: "Are you ready to embark on a journey that will transform your team's strategy and alignment?"
       },
       {
-        name: "OKRs",
-        url: "https://miro.com/templates/okrs/",
-        description: "Set and track objectives and key results"
+        name: "OKR Planning",
+        url: "https://miro.com/templates/okr-planning/",
+        description: "Facilitate OKR planning sessions and keep your team aligned with your organization’s goals."
       },
       {
         name: "Vision Board",
@@ -276,14 +271,14 @@ const TEMPLATE_CATEGORIES = {
         description: "Structure backlog around conversion funnel"
       },
       {
-        name: "Kanban Board",
-        url: "https://miro.com/templates/kanban-board/",
-        description: "Visualize and manage workflow"
+        name: "Kanban Framework Template",
+        url: "https://miro.com/templates/kanban-framework/",
+        description: "Improve processes and team efficiency by managing your workflow in a flexible and visual way."
       },
       {
-        name: "User Story Mapping",
-        url: "https://miro.com/templates/user-story-mapping/",
-        description: "Map user journeys and prioritize features"
+        name: "User Story Mapping Template",
+        url: "https://miro.com/templates/user-story-mapping-with-walkthrough/",
+        description: "The Bluefruit Software user story mapping template offers a framework to help businesses prioritise software development."
       },
       {
         name: "Sprint Review",
@@ -299,11 +294,6 @@ const TEMPLATE_CATEGORIES = {
         name: "Agile Roadmap",
         url: "https://miro.com/templates/agile-roadmap/",
         description: "Plan and visualize agile project timeline"
-      },
-      {
-        name: "Story Points Estimation",
-        url: "https://miro.com/templates/story-points-estimation/",
-        description: "Estimate story points for user stories"
       }
     ]
   },
@@ -320,14 +310,14 @@ const TEMPLATE_CATEGORIES = {
         description: "Model business processes and software architecture"
       },
       {
-        name: "Swimlane Diagram",
-        url: "https://miro.com/templates/swimlane-diagram/",
-        description: "Map processes across different stakeholders"
+        name: "Swimlane Diagram Template",
+        url: "https://miro.com/templates/swimlanes-diagram/",
+        description: "Clarify roles and replace lengthy written processes with visuals."
       },
       {
         name: "Stakeholder Mapping",
-        url: "https://miro.com/templates/stakeholder-mapping/",
-        description: "Analyze and organize stakeholder relationships"
+        url: "https://miro.com/templates/stakeholder-map-basic/",
+        description: "Identify and map out the people involved in a project, gain buy-in, and accomplish your goals."
       },
       {
         name: "Flowchart",
@@ -340,29 +330,29 @@ const TEMPLATE_CATEGORIES = {
         description: "Document and analyze business processes"
       },
       {
-        name: "System Architecture",
-        url: "https://miro.com/templates/system-architecture/",
-        description: "Design and document system architecture"
+        name: "AWS Architecture Diagram Template",
+        url: "https://miro.com/templates/aws-architecture-diagram/",
+        description: "Translate Amazon Web Services architecture best practice into a visual format."
       },
       {
-        name: "Network Diagram",
-        url: "https://miro.com/templates/network-diagram/",
-        description: "Visualize network infrastructure and connections"
+        name: "Google Cloud Architecture Diagram Template",
+        url: "https://miro.com/templates/gcp-architecture/",
+        description: "Visualize the deployment of your applications and optimize your processes."
       },
       {
-        name: "ERD Diagram",
-        url: "https://miro.com/templates/erd-diagram/",
-        description: "Design and document database relationships"
+        name: "Kubernetes Architecture Diagram Template",
+        url: "https://miro.com/templates/kubernetes-diagram/",
+        description: "Map out your application deployments and streamline your processes."
       },
       {
-        name: "Sequence Diagram",
-        url: "https://miro.com/templates/sequence-diagram/",
-        description: "Model interactions between system components"
+        name: "GenAI Application Workflow",
+        url: "https://miro.com/templates/genai-application-workflow/",
+        description: "This template will allow you to build custom Lamatic workflow and make the onboarding faster."
       },
       {
-        name: "State Diagram",
-        url: "https://miro.com/templates/state-diagram/",
-        description: "Model system states and transitions"
+        name: "Business Case Canvas",
+        url: "https://miro.com/templates/simple-business-case/",
+        description: "Use the Business Case Template to cover all the key elements of your idea and easily get buy-in from stakeholders. Impress everyone with your project and achieve success."
       }
     ]
   }
