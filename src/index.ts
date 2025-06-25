@@ -10,6 +10,303 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// --- GONG API INTEGRATION ---
+const GONG_API_BASE = 'https://us-45594.api.gong.io/v2';
+const keys = `${Buffer.from(`${process.env.GONG_KEY}:${process.env.GONG_SECRET}`).toString('base64')}`
+
+// In-memory cache for paginated Gong API results
+const gongCache = new Map<string, any>();
+
+/**
+ * Fetches all paginated results from a Gong API endpoint using cursor-based pagination.
+ * Caches results in-memory by endpoint+params. Only /calls is paginated; others fallback to a single request.
+ * @param endpoint API endpoint (e.g., '/calls')
+ * @param params Query parameters
+ */
+// Improved pagination logic with better debugging
+async function gongGet(endpoint: string, params: any = {}) {
+  const cacheKey = `${endpoint}:${JSON.stringify(params)}`;
+  
+  // Temporarily disable cache for debugging
+  // if (gongCache.has(cacheKey)) {
+  //   return gongCache.get(cacheKey);
+  // }
+
+  async function fetchWithRetry(fetchFn: () => Promise<any>): Promise<any> {
+    const maxRetries = 3;
+    let attempt = 0;
+    
+    while (attempt <= maxRetries) {
+      try {
+        return await fetchFn();
+      } catch (error: any) {
+        if (axios.isAxiosError(error) && error.response?.status === 429) {
+          const retryAfter = error.response.headers['retry-after'];
+          let wait = retryAfter 
+            ? parseFloat(retryAfter) * 1000 
+            : Math.min((2 ** attempt + Math.random()) * 3000, 60000);
+          
+          console.error(`[gongGet] Rate limit hit. Waiting ${Math.round(wait)}ms...`); // Fixed
+          
+          if (attempt === maxRetries) {
+            throw error;
+          }
+          
+          await new Promise(res => setTimeout(res, wait));
+          attempt++;
+        } else {
+          console.error(`[gongGet] Error on attempt ${attempt + 1}:`, error.message);
+          throw error;
+        }
+      }
+    }
+  }
+
+  // Fixed pagination logic for /calls endpoint
+if (endpoint === '/calls') {
+  let allCalls: any[] = [];
+  let cursor: string | null = null;
+  let pageCount = 0;
+  const maxPages = 50; // Safety limit
+  
+  do {
+    const query = { ...params };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    
+    console.error(`[gongGet] Fetching page ${pageCount + 1}, cursor: ${cursor || 'none'}`);
+    console.error(`[gongGet] Query params:`, JSON.stringify(query, null, 2));
+    
+    const url = `${GONG_API_BASE}${endpoint}`;
+    const response = await fetchWithRetry(async () => {
+      return axios.get(url, {
+        headers: {
+          'Authorization': `Basic ${keys}`,
+          'Content-Type': 'application/json',
+        },
+        params: query,
+      }).then(r => r.data);
+    });
+    
+    // Debug: Log the full response structure to understand Gong's format
+    console.error(`[gongGet] Full response keys:`, Object.keys(response));
+    console.error(`[gongGet] Response structure:`, JSON.stringify({
+      callsCount: response.calls?.length || 0,
+      recordsCount: response.records?.length || 0,
+      hasNext: !!response.next,
+      hasRecordsCursor: !!(response.records?.cursor),
+      hasCursor: !!response.cursor,
+      hasNextCursor: !!response.nextCursor
+    }, null, 2));
+    
+    // Gong API typically returns calls in response.calls or response.records
+    let pageCalls: any[] = [];
+    if (Array.isArray(response.calls)) {
+      pageCalls = response.calls;
+    } else if (Array.isArray(response.records)) {
+      pageCalls = response.records;
+    } else if (response.data && Array.isArray(response.data)) {
+      pageCalls = response.data;
+    }
+    
+    console.error(`[gongGet] Page ${pageCount + 1} returned ${pageCalls.length} calls`);
+    
+    // Debug: Show sample call titles if available
+    if (pageCalls.length > 0) {
+      const sampleTitles = pageCalls.slice(0, 3).map((c: any) => c.title || c.name || c.subject || 'No title field');
+      console.error(`[gongGet] Sample titles from page ${pageCount + 1}:`, sampleTitles);
+      
+      // Debug: Show available fields in first call
+      console.error(`[gongGet] Available fields in first call:`, Object.keys(pageCalls[0]));
+    }
+    
+    if (pageCalls.length > 0) {
+      allCalls = allCalls.concat(pageCalls);
+    }
+    
+    // Try multiple possible cursor locations based on Gong API documentation
+    cursor = null;
+    if (response.records && response.records.cursor) {
+      cursor = response.records.cursor;
+      console.error(`[gongGet] Found cursor in response.records.cursor:`, cursor);
+    } else if (response.next) {
+      cursor = response.next;
+      console.error(`[gongGet] Found cursor in response.next:`, cursor);
+    } else if (response.cursor) {
+      cursor = response.cursor;
+      console.error(`[gongGet] Found cursor in response.cursor:`, cursor);
+    } else if (response.nextCursor) {
+      cursor = response.nextCursor;
+      console.error(`[gongGet] Found cursor in response.nextCursor:`, cursor);
+    } else {
+      console.error(`[gongGet] No cursor found. Available response fields:`, Object.keys(response));
+    }
+    
+    pageCount++;
+    
+    console.error(`[gongGet] After page ${pageCount}: Total calls so far: ${allCalls.length}, Next cursor: ${cursor || 'none'}`);
+    
+    // Safety check to prevent infinite loops
+    if (pageCount >= maxPages) {
+      console.error(`[gongGet] Reached max pages limit (${maxPages})`); // Changed from console.warn
+      break;
+    }
+    
+    // Add a small delay between requests to avoid rate limiting
+    if (cursor) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+  } while (cursor);
+  
+  console.error(`[gongGet] FINAL RESULT: Total calls fetched: ${allCalls.length} across ${pageCount} pages`);
+  
+  const result = { calls: allCalls, next: null };
+  gongCache.set(cacheKey, result);
+  return result;
+  }
+}
+
+async function gongPost(endpoint: string, data: any) {
+  const url = `${GONG_API_BASE}${endpoint}`;
+  return axios.post(url, data, {
+    headers: {
+      'Authorization': `Basic ${keys}`,
+      'Content-Type': 'application/json',
+    },
+  }).then(r => r.data);
+}
+
+// Improved fuzzy match function with better matching strategies
+function fuzzyMatch(callTitle: string, searchTerm: string): boolean {
+  const title = callTitle.toLowerCase().trim();
+  const term = searchTerm.toLowerCase().trim();
+  
+  // Direct match - exact or substring
+  if (title === term || title.includes(term) || term.includes(title)) {
+    return true;
+  }
+  
+  // Word-based matching - check if any words from search term appear in title
+  const searchWords = term.split(/\s+/).filter(word => word.length > 2); // Ignore very short words
+  const titleWords = title.split(/\s+/);
+  
+  // If any significant word from search term is found in title
+  for (const searchWord of searchWords) {
+    for (const titleWord of titleWords) {
+      if (titleWord.includes(searchWord) || searchWord.includes(titleWord)) {
+        return true;
+      }
+    }
+  }
+  
+  // Partial word matching - useful for company names
+  // Check if search term appears as part of words in title
+  const titleNormalized = title.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+  const termNormalized = term.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+  
+  if (titleNormalized.includes(termNormalized)) {
+    return true;
+  }
+  
+  // Levenshtein distance for close matches (only for reasonably sized strings)
+  if (term.length >= 3 && title.length >= 3) {
+    const similarity = calculateSimilarity(title, term);
+    if (similarity > 0.6) { // Lowered threshold for better matching
+      return true;
+    }
+    
+    // Also check word-by-word similarity for multi-word searches
+    for (const searchWord of searchWords) {
+      for (const titleWord of titleWords) {
+        if (searchWord.length >= 3 && titleWord.length >= 3) {
+          const wordSimilarity = calculateSimilarity(titleWord, searchWord);
+          if (wordSimilarity > 0.75) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
+function calculateSimilarity(a: string, b: string): number {
+  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+  
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  
+  const dist = matrix[a.length][b.length];
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen === 0 ? 1 : 1 - dist / maxLen;
+}
+
+// Alternative: More flexible matching function
+function flexibleMatch(callTitle: string, searchTerm: string): boolean {
+  const title = callTitle.toLowerCase().trim();
+  const term = searchTerm.toLowerCase().trim();
+  
+  // Remove common punctuation and normalize spaces
+  const normalizeText = (text: string) => 
+    text.replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+  
+  const normalizedTitle = normalizeText(title);
+  const normalizedTerm = normalizeText(term);
+  
+  // Direct substring match
+  if (normalizedTitle.includes(normalizedTerm)) {
+    return true;
+  }
+  
+  // Split into words and check various combinations
+  const titleWords = normalizedTitle.split(' ').filter(w => w.length > 1);
+  const termWords = normalizedTerm.split(' ').filter(w => w.length > 1);
+  
+  // Check if all search words appear somewhere in title (order doesn't matter)
+  const allWordsFound = termWords.every(searchWord => 
+    titleWords.some(titleWord => 
+      titleWord.includes(searchWord) || 
+      searchWord.includes(titleWord) ||
+      calculateSimilarity(titleWord, searchWord) > 0.8
+    )
+  );
+  
+  if (allWordsFound && termWords.length > 0) {
+    return true;
+  }
+  
+  // Check for partial matches with decent similarity
+  for (const searchWord of termWords) {
+    if (searchWord.length >= 3) {
+      for (const titleWord of titleWords) {
+        if (titleWord.length >= 3) {
+          const sim = calculateSimilarity(titleWord, searchWord);
+          if (sim > 0.7) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
 // Enhanced template categories with meeting-specific keywords
 const TEMPLATE_CATEGORIES = {
   "workshops": {
@@ -233,7 +530,7 @@ const TEMPLATE_CATEGORIES = {
       {
         name: "OKR Planning",
         url: "https://miro.com/templates/okr-planning/",
-        description: "Facilitate OKR planning sessions and keep your team aligned with your organization’s goals."
+        description: "Facilitate OKR planning sessions and keep your team aligned with your organization's goals."
       },
       {
         name: "Vision Board",
@@ -554,6 +851,30 @@ class MiroTemplateRecommenderServer {
               { required: ["meetingNotes"] }
             ]
           }
+        },
+        {
+          name: "search_gong_calls",
+          description: "Search Gong calls by customer name and date range, returns matching calls for user selection.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              customerName: { type: "string", description: "Customer name to search for (fuzzy match in call title)" },
+              fromDate: { type: "string", description: "Start date (ISO 8601, optional, defaults to 3 months ago)" },
+              toDate: { type: "string", description: "End date (ISO 8601, optional, defaults to today)" }
+            },
+            required: ["customerName"]
+          }
+        },
+        {
+          name: "get_gong_call_details",
+          description: "Fetch highlights and keypoints for a Gong call by callId.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              callId: { type: "string", description: "The Gong call ID" }
+            },
+            required: ["callId"]
+          }
         }
       ]
     }));
@@ -569,6 +890,10 @@ class MiroTemplateRecommenderServer {
             return await this.getBoardAnalysis(request.params.arguments);
           case "recommend_templates":
             return await this.recommendTemplates(request.params.arguments);
+          case "search_gong_calls":
+            return await this.searchGongCalls(request.params.arguments);
+          case "get_gong_call_details":
+            return await this.getGongCallDetails(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -827,6 +1152,120 @@ class MiroTemplateRecommenderServer {
     return matches / categoryKeywords.length;
   }
 
+  private async searchGongCalls(args: any) {
+    const { customerName, fromDate, toDate } = args;
+    
+    const now = new Date();
+    let from: Date, to: Date;
+    
+    if (fromDate) {
+      from = new Date(fromDate);
+      from.setHours(0, 0, 0, 0); // Start of specified day
+    } else {
+      from = new Date(now);
+      from.setMonth(from.getMonth() - 8);
+      from.setHours(0, 0, 0, 0);
+    }
+    
+    if (toDate) {
+      to = new Date(toDate);
+      to.setHours(23, 59, 59, 999); // End of specified day
+    } else {
+      to = new Date(now);
+      to.setHours(23, 59, 59, 999);
+    }
+    
+    const fromISO = from.toISOString();
+    const toISO = to.toISOString();
+    
+      console.error(`[searchGongCalls] Searching for "${customerName}" from ${fromISO} to ${toISO}`);
+    
+    let calls: any[];
+    if (!keys) {
+      // Mock data remains the same
+      calls = [
+        { id: "1", title: "Call with Nokia - Q2 Review", url: "https://app.gong.io/call/1", started: "2024-05-01T10:00:00Z", primaryUserId: "u1" },
+        { id: "2", title: "Call with Acme Corp - Demo", url: "https://app.gong.io/call/2", started: "2024-05-02T11:00:00Z", primaryUserId: "u2" }
+      ];
+    } else {
+      const data = await gongGet('/calls', { 
+        fromDateTime: fromISO, 
+        toDateTime: toISO,
+        limit: 100 // Add explicit limit if API supports it
+      });
+      
+      calls = (data?.calls || []).map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        url: c.url,
+        started: c.started,
+        primaryUserId: c.primaryUserId
+      }));
+      
+      console.error(`[searchGongCalls] Total calls in date range: ${calls.length}`);
+    }
+    
+    // Apply fuzzy matching
+    const matches = calls.filter(call => flexibleMatch(call.title, customerName));
+    
+        console.error(`[searchGongCalls] Found ${matches.length} matches for "${customerName}"`);
+    
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          customerName,
+          from: fromISO,
+          to: toISO,
+          totalCallsInRange: calls.length,
+          matches
+        }, null, 2)
+      }]
+    };
+  }
+
+  private async getGongCallDetails(args: any) {
+    const { callId } = args;
+    let details: any;
+    if (!keys) {
+      // Mock data
+      details = {
+        callId,
+        highlights: ["Key moment 1", "Key moment 2"],
+        keyPoints: ["Summary point 1", "Summary point 2"]
+      };
+    } else {
+      const postBody = {
+        filter: { callIds: [callId] },
+        contentSelector: {
+          exposedFields: {
+            parties: true,
+            content: {
+              structure: false,
+              topics: false,
+              trackers: false,
+              trackerOccurrences: false,
+              pointsOfInterest: false,
+              brief: true,
+              outline: true,
+              highlights: true,
+              callOutcome: false,
+              keyPoints: true
+            }
+          }
+        }
+      };
+      const data = await gongPost('/calls/extensive', postBody);
+      details = data;
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(details, null, 2)
+      }]
+    };
+  }
+
   async run() {
     const accessToken = process.env.MIRO_ACCESS_TOKEN;
     if (accessToken) {
@@ -840,6 +1279,7 @@ class MiroTemplateRecommenderServer {
     await this.server.connect(transport);
     console.error("Enhanced Miro Template Recommender MCP server running on stdio");
   }
+
 }
 
 const server = new MiroTemplateRecommenderServer();
