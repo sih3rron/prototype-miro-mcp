@@ -26,7 +26,7 @@ const gongCache = new Map<string, any>();
 // Improved pagination logic with better debugging
 async function gongGet(endpoint: string, params: any = {}) {
   const cacheKey = `${endpoint}:${JSON.stringify(params)}`;
-  
+
   // Temporarily disable cache for debugging
   // if (gongCache.has(cacheKey)) {
   //   return gongCache.get(cacheKey);
@@ -35,23 +35,23 @@ async function gongGet(endpoint: string, params: any = {}) {
   async function fetchWithRetry(fetchFn: () => Promise<any>): Promise<any> {
     const maxRetries = 3;
     let attempt = 0;
-    
+
     while (attempt <= maxRetries) {
       try {
         return await fetchFn();
       } catch (error: any) {
         if (axios.isAxiosError(error) && error.response?.status === 429) {
           const retryAfter = error.response.headers['retry-after'];
-          let wait = retryAfter 
-            ? parseFloat(retryAfter) * 1000 
+          let wait = retryAfter
+            ? parseFloat(retryAfter) * 1000
             : Math.min((2 ** attempt + Math.random()) * 3000, 60000);
-          
+
           console.error(`[gongGet] Rate limit hit. Waiting ${Math.round(wait)}ms...`); // Fixed
-          
+
           if (attempt === maxRetries) {
             throw error;
           }
-          
+
           await new Promise(res => setTimeout(res, wait));
           attempt++;
         } else {
@@ -63,108 +63,108 @@ async function gongGet(endpoint: string, params: any = {}) {
   }
 
   // Fixed pagination logic for /calls endpoint
-if (endpoint === '/calls') {
-  let allCalls: any[] = [];
-  let cursor: string | null = null;
-  let pageCount = 0;
-  const maxPages = 50; // Safety limit
-  
-  do {
-    const query = { ...params };
-    if (cursor) {
-      query.cursor = cursor;
-    }
-    
-    console.error(`[gongGet] Fetching page ${pageCount + 1}, cursor: ${cursor || 'none'}`);
-    console.error(`[gongGet] Query params:`, JSON.stringify(query, null, 2));
-    
-    const url = `${GONG_API_BASE}${endpoint}`;
-    const response = await fetchWithRetry(async () => {
-      return axios.get(url, {
-        headers: {
-          'Authorization': `Basic ${keys}`,
-          'Content-Type': 'application/json',
-        },
-        params: query,
-      }).then(r => r.data);
-    });
-    
-    // Debug: Log the full response structure to understand Gong's format
-    console.error(`[gongGet] Full response keys:`, Object.keys(response));
-    console.error(`[gongGet] Response structure:`, JSON.stringify({
-      callsCount: response.calls?.length || 0,
-      recordsCount: response.records?.length || 0,
-      hasNext: !!response.next,
-      hasRecordsCursor: !!(response.records?.cursor),
-      hasCursor: !!response.cursor,
-      hasNextCursor: !!response.nextCursor
-    }, null, 2));
-    
-    // Gong API typically returns calls in response.calls or response.records
-    let pageCalls: any[] = [];
-    if (Array.isArray(response.calls)) {
-      pageCalls = response.calls;
-    } else if (Array.isArray(response.records)) {
-      pageCalls = response.records;
-    } else if (response.data && Array.isArray(response.data)) {
-      pageCalls = response.data;
-    }
-    
-    console.error(`[gongGet] Page ${pageCount + 1} returned ${pageCalls.length} calls`);
-    
-    // Debug: Show sample call titles if available
-    if (pageCalls.length > 0) {
-      const sampleTitles = pageCalls.slice(0, 3).map((c: any) => c.title || c.name || c.subject || 'No title field');
-      console.error(`[gongGet] Sample titles from page ${pageCount + 1}:`, sampleTitles);
-      
-      // Debug: Show available fields in first call
-      console.error(`[gongGet] Available fields in first call:`, Object.keys(pageCalls[0]));
-    }
-    
-    if (pageCalls.length > 0) {
-      allCalls = allCalls.concat(pageCalls);
-    }
-    
-    // Try multiple possible cursor locations based on Gong API documentation
-    cursor = null;
-    if (response.records && response.records.cursor) {
-      cursor = response.records.cursor;
-      console.error(`[gongGet] Found cursor in response.records.cursor:`, cursor);
-    } else if (response.next) {
-      cursor = response.next;
-      console.error(`[gongGet] Found cursor in response.next:`, cursor);
-    } else if (response.cursor) {
-      cursor = response.cursor;
-      console.error(`[gongGet] Found cursor in response.cursor:`, cursor);
-    } else if (response.nextCursor) {
-      cursor = response.nextCursor;
-      console.error(`[gongGet] Found cursor in response.nextCursor:`, cursor);
-    } else {
-      console.error(`[gongGet] No cursor found. Available response fields:`, Object.keys(response));
-    }
-    
-    pageCount++;
-    
-    console.error(`[gongGet] After page ${pageCount}: Total calls so far: ${allCalls.length}, Next cursor: ${cursor || 'none'}`);
-    
-    // Safety check to prevent infinite loops
-    if (pageCount >= maxPages) {
-      console.error(`[gongGet] Reached max pages limit (${maxPages})`); // Changed from console.warn
-      break;
-    }
-    
-    // Add a small delay between requests to avoid rate limiting
-    if (cursor) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    
-  } while (cursor);
-  
-  console.error(`[gongGet] FINAL RESULT: Total calls fetched: ${allCalls.length} across ${pageCount} pages`);
-  
-  const result = { calls: allCalls, next: null };
-  gongCache.set(cacheKey, result);
-  return result;
+  if (endpoint === '/calls') {
+    let allCalls: any[] = [];
+    let cursor: string | null = null;
+    let pageCount = 0;
+    const maxPages = 50; // Safety limit
+
+    do {
+      const query = { ...params };
+      if (cursor) {
+        query.cursor = cursor;
+      }
+
+      console.error(`[gongGet] Fetching page ${pageCount + 1}, cursor: ${cursor || 'none'}`);
+      console.error(`[gongGet] Query params:`, JSON.stringify(query, null, 2));
+
+      const url = `${GONG_API_BASE}${endpoint}`;
+      const response = await fetchWithRetry(async () => {
+        return axios.get(url, {
+          headers: {
+            'Authorization': `Basic ${keys}`,
+            'Content-Type': 'application/json',
+          },
+          params: query,
+        }).then(r => r.data);
+      });
+
+      // Debug: Log the full response structure to understand Gong's format
+      console.error(`[gongGet] Full response keys:`, Object.keys(response));
+      console.error(`[gongGet] Response structure:`, JSON.stringify({
+        callsCount: response.calls?.length || 0,
+        recordsCount: response.records?.length || 0,
+        hasNext: !!response.next,
+        hasRecordsCursor: !!(response.records?.cursor),
+        hasCursor: !!response.cursor,
+        hasNextCursor: !!response.nextCursor
+      }, null, 2));
+
+      // Gong API typically returns calls in response.calls or response.records
+      let pageCalls: any[] = [];
+      if (Array.isArray(response.calls)) {
+        pageCalls = response.calls;
+      } else if (Array.isArray(response.records)) {
+        pageCalls = response.records;
+      } else if (response.data && Array.isArray(response.data)) {
+        pageCalls = response.data;
+      }
+
+      console.error(`[gongGet] Page ${pageCount + 1} returned ${pageCalls.length} calls`);
+
+      // Debug: Show sample call titles if available
+      if (pageCalls.length > 0) {
+        const sampleTitles = pageCalls.slice(0, 3).map((c: any) => c.title || c.name || c.subject || 'No title field');
+        console.error(`[gongGet] Sample titles from page ${pageCount + 1}:`, sampleTitles);
+
+        // Debug: Show available fields in first call
+        console.error(`[gongGet] Available fields in first call:`, Object.keys(pageCalls[0]));
+      }
+
+      if (pageCalls.length > 0) {
+        allCalls = allCalls.concat(pageCalls);
+      }
+
+      // Try multiple possible cursor locations based on Gong API documentation
+      cursor = null;
+      if (response.records && response.records.cursor) {
+        cursor = response.records.cursor;
+        console.error(`[gongGet] Found cursor in response.records.cursor:`, cursor);
+      } else if (response.next) {
+        cursor = response.next;
+        console.error(`[gongGet] Found cursor in response.next:`, cursor);
+      } else if (response.cursor) {
+        cursor = response.cursor;
+        console.error(`[gongGet] Found cursor in response.cursor:`, cursor);
+      } else if (response.nextCursor) {
+        cursor = response.nextCursor;
+        console.error(`[gongGet] Found cursor in response.nextCursor:`, cursor);
+      } else {
+        console.error(`[gongGet] No cursor found. Available response fields:`, Object.keys(response));
+      }
+
+      pageCount++;
+
+      console.error(`[gongGet] After page ${pageCount}: Total calls so far: ${allCalls.length}, Next cursor: ${cursor || 'none'}`);
+
+      // Safety check to prevent infinite loops
+      if (pageCount >= maxPages) {
+        console.error(`[gongGet] Reached max pages limit (${maxPages})`); // Changed from console.warn
+        break;
+      }
+
+      // Add a small delay between requests to avoid rate limiting
+      if (cursor) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+    } while (cursor);
+
+    console.error(`[gongGet] FINAL RESULT: Total calls fetched: ${allCalls.length} across ${pageCount} pages`);
+
+    const result = { calls: allCalls, next: null };
+    gongCache.set(cacheKey, result);
+    return result;
   }
 }
 
@@ -182,16 +182,16 @@ async function gongPost(endpoint: string, data: any) {
 function fuzzyMatch(callTitle: string, searchTerm: string): boolean {
   const title = callTitle.toLowerCase().trim();
   const term = searchTerm.toLowerCase().trim();
-  
+
   // Direct match - exact or substring
   if (title === term || title.includes(term) || term.includes(title)) {
     return true;
   }
-  
+
   // Word-based matching - check if any words from search term appear in title
   const searchWords = term.split(/\s+/).filter(word => word.length > 2); // Ignore very short words
   const titleWords = title.split(/\s+/);
-  
+
   // If any significant word from search term is found in title
   for (const searchWord of searchWords) {
     for (const titleWord of titleWords) {
@@ -200,23 +200,23 @@ function fuzzyMatch(callTitle: string, searchTerm: string): boolean {
       }
     }
   }
-  
+
   // Partial word matching - useful for company names
   // Check if search term appears as part of words in title
   const titleNormalized = title.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
   const termNormalized = term.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
-  
+
   if (titleNormalized.includes(termNormalized)) {
     return true;
   }
-  
+
   // Levenshtein distance for close matches (only for reasonably sized strings)
   if (term.length >= 3 && title.length >= 3) {
     const similarity = calculateSimilarity(title, term);
     if (similarity > 0.6) { // Lowered threshold for better matching
       return true;
     }
-    
+
     // Also check word-by-word similarity for multi-word searches
     for (const searchWord of searchWords) {
       for (const titleWord of titleWords) {
@@ -229,16 +229,16 @@ function fuzzyMatch(callTitle: string, searchTerm: string): boolean {
       }
     }
   }
-  
+
   return false;
 }
 
 function calculateSimilarity(a: string, b: string): number {
   const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-  
+
   for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
   for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-  
+
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       matrix[i][j] = Math.min(
@@ -248,7 +248,7 @@ function calculateSimilarity(a: string, b: string): number {
       );
     }
   }
-  
+
   const dist = matrix[a.length][b.length];
   const maxLen = Math.max(a.length, b.length);
   return maxLen === 0 ? 1 : 1 - dist / maxLen;
@@ -258,38 +258,38 @@ function calculateSimilarity(a: string, b: string): number {
 function flexibleMatch(callTitle: string, searchTerm: string): boolean {
   const title = callTitle.toLowerCase().trim();
   const term = searchTerm.toLowerCase().trim();
-  
+
   // Remove common punctuation and normalize spaces
-  const normalizeText = (text: string) => 
+  const normalizeText = (text: string) =>
     text.replace(/[^\w\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-  
+      .replace(/\s+/g, ' ')
+      .trim();
+
   const normalizedTitle = normalizeText(title);
   const normalizedTerm = normalizeText(term);
-  
+
   // Direct substring match
   if (normalizedTitle.includes(normalizedTerm)) {
     return true;
   }
-  
+
   // Split into words and check various combinations
   const titleWords = normalizedTitle.split(' ').filter(w => w.length > 1);
   const termWords = normalizedTerm.split(' ').filter(w => w.length > 1);
-  
+
   // Check if all search words appear somewhere in title (order doesn't matter)
-  const allWordsFound = termWords.every(searchWord => 
-    titleWords.some(titleWord => 
-      titleWord.includes(searchWord) || 
+  const allWordsFound = termWords.every(searchWord =>
+    titleWords.some(titleWord =>
+      titleWord.includes(searchWord) ||
       searchWord.includes(titleWord) ||
       calculateSimilarity(titleWord, searchWord) > 0.8
     )
   );
-  
+
   if (allWordsFound && termWords.length > 0) {
     return true;
   }
-  
+
   // Check for partial matches with decent similarity
   for (const searchWord of termWords) {
     if (searchWord.length >= 3) {
@@ -303,7 +303,7 @@ function flexibleMatch(callTitle: string, searchTerm: string): boolean {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -773,7 +773,7 @@ class MiroTemplateRecommenderServer {
     });
 
     this.setupToolHandlers();
-    
+
     this.server.onerror = (error) => console.error("[MCP Error]", error);
     process.on("SIGINT", async () => {
       await this.server.close();
@@ -837,7 +837,7 @@ class MiroTemplateRecommenderServer {
                 description: "The Miro board ID to analyze"
               },
               meetingNotes: {
-                type: "string", 
+                type: "string",
                 description: "Meeting notes text to analyze"
               },
               maxRecommendations: {
@@ -849,6 +849,22 @@ class MiroTemplateRecommenderServer {
             anyOf: [
               { required: ["boardId"] },
               { required: ["meetingNotes"] }
+            ]
+          }
+        },
+        {
+          name: "select_gong_call",
+          description: "Select a specific call from search results by selection number or direct call ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              callId: { type: "string", description: "Direct Gong call ID to select" },
+              selectionNumber: { type: "number", description: "Selection number from search results (1, 2, 3, etc.)" },
+              customerName: { type: "string", description: "Original customer name used in search (required when using selectionNumber)" }
+            },
+            anyOf: [
+              { required: ["callId"] },
+              { required: ["selectionNumber", "customerName"] }
             ]
           }
         },
@@ -892,6 +908,8 @@ class MiroTemplateRecommenderServer {
             return await this.recommendTemplates(request.params.arguments);
           case "search_gong_calls":
             return await this.searchGongCalls(request.params.arguments);
+          case "select_gong_call":
+            return await this.selectGongCall(request.params.arguments);
           case "get_gong_call_details":
             return await this.getGongCallDetails(request.params.arguments);
           default:
@@ -911,7 +929,7 @@ class MiroTemplateRecommenderServer {
 
   private async getBoardContent(args: any) {
     const { boardId } = args;
-    
+
     if (!this.miroClient) {
       const mockContent = [
         "Sprint planning for Q2 2024",
@@ -938,7 +956,7 @@ class MiroTemplateRecommenderServer {
 
   private async getAllItems(args: any) {
     const { boardId } = args;
-    
+
     if (!this.miroClient) {
       const mockItems = [
         { id: "1", type: "sticky_note", data: { content: "Sprint planning for Q2 2024" }, position: { x: 0, y: 0 } },
@@ -963,7 +981,7 @@ class MiroTemplateRecommenderServer {
 
   private async getBoardAnalysis(args: any) {
     const { boardId } = args;
-    
+
     let boardContent: string[];
     if (!this.miroClient) {
       boardContent = [
@@ -974,9 +992,9 @@ class MiroTemplateRecommenderServer {
     } else {
       boardContent = await this.miroClient.getBoardContent(boardId);
     }
-    
+
     const analysis = this.analyzeContent(boardContent);
-    
+
     return {
       content: [{
         type: "text",
@@ -998,10 +1016,10 @@ class MiroTemplateRecommenderServer {
 
   private async recommendTemplates(args: any) {
     const { boardId, meetingNotes, maxRecommendations = 5 } = args;
-    
+
     let content: string[];
     let contentType: string;
-    
+
     if (boardId) {
       // Analyze Miro board
       if (!this.miroClient) {
@@ -1022,7 +1040,7 @@ class MiroTemplateRecommenderServer {
     } else {
       throw new Error("Please provide either a Miro board ID or meeting notes text.");
     }
-    
+
     const analysis = this.analyzeContent(content);
     const recommendations = this.generateRecommendations(analysis, maxRecommendations);
 
@@ -1047,22 +1065,22 @@ class MiroTemplateRecommenderServer {
   private parseMeetingNotes(meetingNotes: string): string[] {
     const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
     const content: string[] = [];
-    
+
     lines.forEach(line => {
       const trimmedLine = line.trim();
       if (trimmedLine.length < 3) return;
-      
+
       const cleanedLine = trimmedLine
         .replace(/^[-*•]\s*/, '')
-        .replace(/^\d+\.\s*/, '') 
+        .replace(/^\d+\.\s*/, '')
         .replace(/^#{1,6}\s*/, '')
         .trim();
-      
+
       if (cleanedLine.length > 0) {
         content.push(cleanedLine);
       }
     });
-    
+
     return content;
   }
 
@@ -1077,10 +1095,10 @@ class MiroTemplateRecommenderServer {
 
     for (const [category, categoryData] of Object.entries(TEMPLATE_CATEGORIES)) {
       const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category as TemplateCategory]?.keywords ?? [];
-      const matchingKeywords = categoryKeywords.filter(keyword => 
+      const matchingKeywords = categoryKeywords.filter(keyword =>
         allText.includes(keyword.toLowerCase())
       );
-      
+
       if (matchingKeywords.length > 0) {
         foundKeywords.push(...matchingKeywords);
         categoryScores[category] = matchingKeywords.length;
@@ -1088,7 +1106,7 @@ class MiroTemplateRecommenderServer {
     }
 
     const sortedCategories = Object.entries(categoryScores)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .map(([category]) => category as TemplateCategory);
 
     const context = this.generateContextDescription(sortedCategories);
@@ -1105,7 +1123,7 @@ class MiroTemplateRecommenderServer {
     maxRecommendations: number
   ) {
     const recommendations: any[] = [];
-    
+
     for (const category of analysis.categories) {
       const categoryTemplates = TEMPLATE_CATEGORIES[category]?.templates || [];
       recommendations.push(...categoryTemplates.map((template: any) => ({
@@ -1131,7 +1149,7 @@ class MiroTemplateRecommenderServer {
   private generateContextDescription(categories: TemplateCategory[]): string {
     const contextMap: { [key: string]: string } = {
       "agile": "Agile/Scrum methodology",
-      "design": "Design and UX work", 
+      "design": "Design and UX work",
       "planning": "Strategic planning",
       "brainstorming": "Ideation and creativity",
       "analysis": "Research and analysis",
@@ -1140,8 +1158,8 @@ class MiroTemplateRecommenderServer {
     };
 
     const contexts = categories.slice(0, 3).map(cat => contextMap[cat]).filter(Boolean);
-    
-    return contexts.length > 0 
+
+    return contexts.length > 0
       ? `Content appears to focus on: ${contexts.join(", ")}`
       : "General collaborative work";
   }
@@ -1152,76 +1170,274 @@ class MiroTemplateRecommenderServer {
     return matches / categoryKeywords.length;
   }
 
+  // Enhanced search that returns user-friendly call selection
   private async searchGongCalls(args: any) {
     const { customerName, fromDate, toDate } = args;
-    
+
     const now = new Date();
     let from: Date, to: Date;
-    
+
     if (fromDate) {
       from = new Date(fromDate);
-      from.setHours(0, 0, 0, 0); // Start of specified day
+      from.setHours(0, 0, 0, 0);
     } else {
       from = new Date(now);
-      from.setMonth(from.getMonth() - 8);
+      from.setMonth(now.getMonth() - 2);
       from.setHours(0, 0, 0, 0);
     }
-    
+
     if (toDate) {
       to = new Date(toDate);
-      to.setHours(23, 59, 59, 999); // End of specified day
+      to.setHours(23, 59, 59, 999);
     } else {
       to = new Date(now);
       to.setHours(23, 59, 59, 999);
     }
-    
+
     const fromISO = from.toISOString();
     const toISO = to.toISOString();
-    
-      console.error(`[searchGongCalls] Searching for "${customerName}" from ${fromISO} to ${toISO}`);
-    
+
+    console.error(`[searchGongCalls] Searching for "${customerName}" from ${fromISO} to ${toISO}`);
+
     let calls: any[];
     if (!keys) {
-      // Mock data remains the same
+      // Enhanced mock data with more variety
       calls = [
-        { id: "1", title: "Call with Nokia - Q2 Review", url: "https://app.gong.io/call/1", started: "2024-05-01T10:00:00Z", primaryUserId: "u1" },
-        { id: "2", title: "Call with Acme Corp - Demo", url: "https://app.gong.io/call/2", started: "2024-05-02T11:00:00Z", primaryUserId: "u2" }
+        {
+          id: "call_001",
+          title: "Schipol Airport - Q1 Planning Session",
+          url: "https://app.gong.io/call/call_001",
+          started: "2025-03-23T10:00:00Z",
+          primaryUserId: "user_123",
+          duration: 3600,
+          parties: ["john.doe@company.com", "manager@schipol.nl"]
+        },
+        {
+          id: "call_002",
+          title: "Schipol - Infrastructure Review",
+          url: "https://app.gong.io/call/call_002",
+          started: "2025-03-15T14:30:00Z",
+          primaryUserId: "user_456",
+          duration: 2700,
+          parties: ["jane.smith@company.com", "tech@schipol.nl"]
+        },
+        {
+          id: "call_003",
+          title: "Weekly Sync - Schipol Team",
+          url: "https://app.gong.io/call/call_003",
+          started: "2025-03-20T09:00:00Z",
+          primaryUserId: "user_789",
+          duration: 1800,
+          parties: ["team@company.com", "project@schipol.nl"]
+        }
       ];
     } else {
-      const data = await gongGet('/calls', { 
-        fromDateTime: fromISO, 
+      const data = await gongGet('/calls', {
+        fromDateTime: fromISO,
         toDateTime: toISO,
-        limit: 100 // Add explicit limit if API supports it
+        limit: 100
       });
-      
+
       calls = (data?.calls || []).map((c: any) => ({
         id: c.id,
         title: c.title,
         url: c.url,
         started: c.started,
-        primaryUserId: c.primaryUserId
+        primaryUserId: c.primaryUserId,
+        duration: c.duration,
+        parties: c.parties || []
       }));
-      
-      console.error(`[searchGongCalls] Total calls in date range: ${calls.length}`);
     }
-    
-    // Apply fuzzy matching
-    const matches = calls.filter(call => flexibleMatch(call.title, customerName));
-    
-        console.error(`[searchGongCalls] Found ${matches.length} matches for "${customerName}"`);
-    
+
+    console.error(`[searchGongCalls] Total calls in date range: ${calls.length}`);
+
+    // Enhanced matching with scoring
+    const wordRegex = new RegExp(`\\b${customerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    let matches = calls.filter(call => wordRegex.test(call.title))
+      .map(call => ({ ...call, matchType: 'exact', score: 100 }));
+
+    if (matches.length === 0) {
+      matches = calls.filter(call => flexibleMatch(call.title, customerName))
+        .map(call => ({
+          ...call,
+          matchType: 'fuzzy',
+          score: this.calculateMatchScore(call.title, customerName)
+        }));
+    }
+
+    // Sort by score (highest first) and date (most recent first)
+    matches.sort((a, b) => {
+      if (a.score !== b.score) return b.score - a.score;
+      return new Date(b.started).getTime() - new Date(a.started).getTime();
+    });
+
+    console.error(`[searchGongCalls] Found ${matches.length} matches for "${customerName}"`);
+
+    // Format matches for user selection
+    const formattedMatches = matches.map((call, index) => ({
+      selectionNumber: index + 1,
+      callId: call.id,
+      title: call.title,
+      date: new Date(call.started).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      duration: this.formatDuration(call.duration),
+      participants: call.parties?.length || 0,
+      matchType: call.matchType,
+      score: call.score,
+      url: call.url
+    }));
+
     return {
       content: [{
         type: "text",
         text: JSON.stringify({
-          customerName,
-          from: fromISO,
-          to: toISO,
+          searchQuery: customerName,
+          dateRange: { from: fromISO, to: toISO },
           totalCallsInRange: calls.length,
-          matches
+          matchesFound: matches.length,
+          matches: formattedMatches,
+          userInstructions: matches.length > 1 ?
+            "Multiple calls found. Please use 'select_gong_call' with the selection number or call ID to choose a specific call." :
+            matches.length === 1 ?
+              "One call found. You can proceed with this call or use 'select_gong_call' to confirm." :
+              "No matching calls found. Try adjusting the customer name or date range."
         }, null, 2)
       }]
     };
+  }
+
+  // Add this new tool method
+  private async selectGongCall(args: any) {
+    const { callId, selectionNumber, customerName } = args;
+
+    // If selection by number, we need to re-run the search to get the call
+    if (selectionNumber && customerName) {
+      const searchResult = await this.searchGongCalls({ customerName });
+      const searchData = JSON.parse(searchResult.content[0].text);
+
+      const selectedMatch = searchData.matches.find((match: any) =>
+        match.selectionNumber === selectionNumber
+      );
+
+      if (!selectedMatch) {
+        throw new Error(`Selection number ${selectionNumber} not found. Please use a number between 1 and ${searchData.matches.length}.`);
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            selectedCall: {
+              callId: selectedMatch.callId,
+              title: selectedMatch.title,
+              date: selectedMatch.date,
+              duration: selectedMatch.duration,
+              participants: selectedMatch.participants,
+              url: selectedMatch.url
+            },
+            message: `Selected call: "${selectedMatch.title}" from ${selectedMatch.date}`,
+            nextSteps: "You can now use 'get_gong_call_details' with this callId to get highlights and key points."
+          }, null, 2)
+        }]
+      };
+    }
+
+    // Direct selection by callId
+    if (callId) {
+      let callDetails: any;
+
+      if (!keys) {
+        // Mock call details
+        callDetails = {
+          id: callId,
+          title: "Selected Call",
+          started: new Date().toISOString(),
+          url: `https://app.gong.io/call/${callId}`
+        };
+      } else {
+        // Fetch basic call info (you might need to adjust this based on Gong's API)
+        try {
+          const response = await gongGet(`/calls/${callId}`);
+          callDetails = response;
+        } catch (error) {
+          throw new Error(`Call with ID ${callId} not found or not accessible.`);
+        }
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            selectedCall: {
+              callId: callDetails.id,
+              title: callDetails.title,
+              date: new Date(callDetails.started).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              url: callDetails.url
+            },
+            message: `Selected call: "${callDetails.title}"`,
+            nextSteps: "You can now use 'get_gong_call_details' with this callId to get highlights and key points."
+          }, null, 2)
+        }]
+      };
+    }
+
+    throw new Error("Please provide either a callId or selectionNumber with customerName.");
+  }
+
+  // Helper methods
+  private calculateMatchScore(title: string, searchTerm: string): number {
+    const normalizedTitle = title.toLowerCase();
+    const normalizedTerm = searchTerm.toLowerCase();
+
+    // Exact match
+    if (normalizedTitle.includes(normalizedTerm)) return 90;
+
+    // Word-based scoring
+    const titleWords = normalizedTitle.split(/\s+/);
+    const termWords = normalizedTerm.split(/\s+/);
+
+    let score = 0;
+    let matchedWords = 0;
+
+    for (const termWord of termWords) {
+      for (const titleWord of titleWords) {
+        if (titleWord.includes(termWord) || termWord.includes(titleWord)) {
+          matchedWords++;
+          score += 20;
+          break;
+        }
+      }
+    }
+
+    // Bonus for high percentage of words matched
+    const matchPercentage = matchedWords / termWords.length;
+    score += matchPercentage * 30;
+
+    return Math.min(Math.round(score), 85); // Cap fuzzy matches below exact matches
+  }
+
+  private formatDuration(seconds: number): string {
+    if (!seconds) return "Unknown";
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
   }
 
   private async getGongCallDetails(args: any) {
