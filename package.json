@@ -7,7 +7,11 @@
     "scripts": {
         "build": "tsc",
         "start": "node build/index.js",
+        "start:miro": "node build/miro-server.js",
+        "start:gong": "node build/gong-server.js",
         "dev": "tsc --watch & node --watch build/index.js",
+        "dev:miro": "ts-node src/miro-server.ts",
+        "dev:gong": "ts-node src/gong-server.ts",
         "prepare": "npm run build"
     },
     "keywords": [
@@ -29,7 +33,9 @@
         "typescript": "^5.0.0"
     },
     "bin": {
-        "miro-template-recommender-mcp": "./build/index.js"
+        "miro-template-recommender-mcp": "./build/index.js",
+        "miro-mcp-server": "./build/miro-server.js",
+        "gong-mcp-server": "./build/gong-server.js"
     },
     "files": [
         "build/**/*"

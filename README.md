@@ -1,14 +1,22 @@
-# Miro Template Recommender
+# Miro & Gong MCP Servers
 
-An intelligent template recommendation system that analyzes meeting notes and Miro board content to suggest relevant Miro templates for workshops and collaborative sessions.
+A suite of Model Context Protocol (MCP) servers for collaborative intelligence:
+- **Miro Template Recommender**: Analyzes meeting notes and Miro board content to suggest relevant Miro templates for workshops and collaborative sessions.
+- **Gong Call Analysis Server**: Integrates with Gong to search, select, and analyze calls, providing highlights and key points for sales and customer conversations.
 
 ## Features
 
-- **Meeting Notes Analysis**: Analyzes meeting notes to understand context and requirements
-- **Smart Template Matching**: Matches content with relevant Miro templates across multiple categories
-- **Contextual Recommendations**: Provides template suggestions based on meeting objectives and content
-- **Multiple Input Types**: Supports both Miro board content and meeting notes analysis
-- **Weighted Scoring**: Ranks recommendations based on relevance and context
+- **Miro Template Recommendation**
+  - Analyze meeting notes or Miro board content
+  - Smart template matching across multiple categories
+  - Contextual, ranked recommendations
+  - Weighted scoring and keyword analysis
+
+- **Gong Call Analysis**
+  - Search Gong calls by customer name and date
+  - Fuzzy and exact matching for call titles
+  - Select and retrieve call details, highlights, and key points
+  - Useful for sales, customer success, and research teams
 
 ## Installation
 
@@ -24,91 +32,62 @@ npm install
 npm run build
 ```
 
-3. **Set up Miro API access:**
-   - Go to [Miro Developer Console](https://developers.miro.com/)
-   - Create a new app
-   - Get your access token
-   - Set the environment variable:
-   ```bash
-   export MIRO_ACCESS_TOKEN="your_access_token_here"
-   ```
+3. **Set up API access:**
+   - **Miro:**
+     - Go to [Miro Developer Console](https://developers.miro.com/)
+     - Create a new app and get your access token
+     - Set the environment variable:
+     ```bash
+     export MIRO_ACCESS_TOKEN="your_access_token_here"
+     ```
+   - **Gong:**
+     - Get your Gong API key and secret
+     - Set the environment variables:
+     ```bash
+     export GONG_KEY="your_gong_key_here"
+     export GONG_SECRET="your_gong_secret_here"
+     ```
 
 ## Usage
 
-### 1. Get Template Recommendations from Meeting Notes
-
-```typescript
-const recommendations = await recommendTemplates({
-  meetingNotes: "Your meeting notes here...",
-  maxRecommendations: 5
-});
+### 1. Run the Miro Template Recommender MCP Server
+```bash
+npx ts-node src/miro-server.ts
 ```
+- Provides tools for analyzing Miro boards and meeting notes, and recommending templates.
 
-This will:
-- Parse and analyze meeting notes
-- Identify key themes and objectives
-- Return ranked template recommendations
-
-### 2. Get Template Recommendations from Miro Board
-
-```typescript
-const recommendations = await recommendTemplates({
-  boardId: "your-board-id",
-  maxRecommendations: 5
-});
+### 2. Run the Gong MCP Server
+```bash
+npx ts-node src/gong-server.ts
 ```
+- Provides tools for searching, selecting, and analyzing Gong calls.
 
-This will:
-- Extract content from the Miro board
-- Analyze board context and purpose
-- Return relevant template suggestions
+### 3. (Alternative) Run the Combined Server
+```bash
+npx ts-node src/index.ts
+```
+- (If applicable) Provides both Miro and Gong tools in a single MCP server.
 
-## Supported Template Categories
-
-The system recognizes and recommends templates for:
-
-- **Workshops**: 
-  - Workshop Agenda
-  - Icebreaker Activities
-  - Team Charter
-
-- **Planning**: 
-  - Product Roadmap
-  - Project Timeline
-  - OKRs Template
-
-- **Collaboration**: 
-  - Mind Map
-  - Brainwriting
-  - Idea Parking Lot
-
-- **Analysis**: 
-  - SWOT Analysis
-  - Research Synthesis
-  - Decision Matrix
-
-- **Agile**: 
-  - Sprint Planning
-  - Retrospective
-  - User Story Mapping
-
-- **Design**: 
-  - Wireframe Kit
-  - Design System
-  - User Journey Map
+## Project Structure
+```
+src/
+├── index.ts         # Combined MCP server (Miro + Gong, if used)
+├── miro-client.ts   # Miro API integration and board analysis utilities
+├── miro-server.ts   # Miro Template Recommender MCP server
+├── gong-server.ts   # Gong MCP server for Gong API integration
+```
 
 ## API Reference
 
-### `recommendTemplates`
+### Miro Template Recommender Tools
 
+#### `recommendTemplates`
 Analyzes content and returns template recommendations.
 
 **Parameters:**
 - `boardId` (optional): The Miro board ID
 - `meetingNotes` (optional): Meeting notes text to analyze
 - `maxRecommendations` (optional): Maximum number of recommendations (default: 5)
-
-**Note:** Either `boardId` or `meetingNotes` must be provided.
 
 **Returns:**
 ```typescript
@@ -130,98 +109,79 @@ Analyzes content and returns template recommendations.
 }
 ```
 
-## Example Usage
-
+#### Example Usage
 ```typescript
-// Example with meeting notes
 const result = await recommendTemplates({
-  meetingNotes: `
-    Meeting Recap:
-    - Discussed project timeline
-    - Need to plan workshop
-    - Team collaboration required
-  `,
+  meetingNotes: "Discussed project timeline and need to plan workshop",
   maxRecommendations: 3
 });
-
-// Example output
-{
-  "contentType": "meeting_notes",
-  "analysis": {
-    "detectedKeywords": ["project", "timeline", "workshop", "collaboration"],
-    "identifiedCategories": ["planning", "workshops"],
-    "context": "Content appears to focus on: Strategic planning, Team collaboration and workshops"
-  },
-  "recommendations": [
-    {
-      "name": "Workshop Agenda",
-      "url": "https://miro.com/templates/workshop-agenda/",
-      "description": "Structure your workshop sessions",
-      "category": "workshops",
-      "relevanceScore": 0.9
-    },
-    {
-      "name": "Project Timeline",
-      "url": "https://miro.com/templates/project-timeline/",
-      "description": "Visualize project phases and milestones",
-      "category": "planning",
-      "relevanceScore": 0.85
-    }
-  ]
-}
 ```
 
-## Development
+### Gong Call Analysis Tools
 
-### Project Structure
-```
-src/
-├── index.ts              # Main server implementation
-├── miro-client.ts        # Miro API integration
-└── template-engine.ts    # Template recommendation logic
-```
+#### `search_gong_calls`
+Search Gong calls by customer name and date range.
 
-### Running in Development Mode
-```bash
-npm run dev
-```
+**Parameters:**
+- `customerName`: Customer name to search for (fuzzy match in call title)
+- `fromDate` (optional): Start date (ISO 8601)
+- `toDate` (optional): End date (ISO 8601)
 
-### Building
-```bash
-npm run build
+#### `select_gong_call`
+Select a specific call from search results by selection number or call ID.
+
+**Parameters:**
+- `callId`: Direct Gong call ID to select
+- `selectionNumber`: Selection number from search results
+- `customerName`: Original customer name used in search (required with selectionNumber)
+
+#### `get_gong_call_details`
+Fetch highlights and key points for a Gong call by callId.
+
+**Parameters:**
+- `callId`: The Gong call ID
+
+#### Example Usage
+```typescript
+// Search for calls
+const searchResult = await search_gong_calls({ customerName: "Acme Corp", fromDate: "2024-01-01", toDate: "2024-03-31" });
+
+// Select a call
+const selected = await select_gong_call({ selectionNumber: 1, customerName: "Acme Corp" });
+
+// Get call details
+const details = await get_gong_call_details({ callId: selected.callId });
 ```
 
 ## Extending the System
 
-### Adding New Template Categories
-
-1. Update the `TEMPLATE_CATEGORIES` object in `index.ts`
+### Adding New Template Categories (Miro)
+1. Update the `TEMPLATE_CATEGORIES` object in either `index.ts` or `miro-server.ts` (depending on which server you use)
 2. Add new categories with:
    - Keywords for matching
    - Template definitions
-   - Category weight for scoring
+   - Category weight for scoring (if applicable)
 
 ### Customizing Analysis
+- Add more sophisticated keyword matching (in `index.ts`, `miro-server.ts`, or `miro-client.ts`)
+- Implement semantic analysis
+- Support additional content types
 
-The content analysis can be enhanced by:
-- Adding more sophisticated keyword matching
-- Implementing semantic analysis
-- Supporting additional content types
+### Adding/Customizing Gong Tools
+- Update or extend tool handlers in `gong-server.ts` or `index.ts`
+- Add new Gong API endpoints or analysis logic as needed
 
 ## Security
-
-- Store Miro access tokens securely using environment variables
+- Store API keys and tokens securely using environment variables
 - Implement proper error handling for API calls
 - Consider rate limiting for API requests
 
 ## Limitations
-
-- Requires Miro API access for board analysis
-- Template recommendations are based on predefined categories and keywords
+- Requires Miro and/or Gong API access for full functionality
+- Recommendations and analysis are based on predefined categories and keywords
 - Analysis is primarily keyword-based
 
 ## Contributing
-
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
@@ -229,11 +189,10 @@ The content analysis can be enhanced by:
 5. Submit a pull request
 
 ## License
-
 MIT License - see LICENSE file for details.
 
 ## Support
-
 For issues related to:
 - **Miro API**: Check [Miro Developer docs](https://developers.miro.com/)
+- **Gong API**: See [Gong API docs](https://developers.gong.io/)
 - **This project**: Create an issue in this repository
