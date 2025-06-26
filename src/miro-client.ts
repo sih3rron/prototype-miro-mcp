@@ -8,11 +8,17 @@ export interface MiroItem {
     content?: string;
     text?: string;
     title?: string;
+    format?: string;
+    showContent?: boolean;
   };
   position: {
     x: number;
     y: number;
   };
+  style?: any;
+  geometry?: any;
+  parent?: any;
+  isSupported?: boolean;
 }
 
 export interface MiroBoardInfo {
@@ -94,19 +100,68 @@ export class MiroClient {
   }
 
   private extractTextFromItem(item: MiroItem): string | null {
-    // Handle different item types
+    // Skip unsupported items
+    if (item.isSupported === false) {
+      return null;
+    }
+
+    // Handle different item types based on actual Miro API structure
     switch (item.type) {
       case 'text':
       case 'sticky_note':
-        return item.data.content || item.data.text || null;
+        // For text items, check data.content first, then try to parse HTML content
+        if (item.data?.content) {
+          return this.cleanHtmlContent(item.data.content);
+        }
+        return item.data?.text || null;
+        
       case 'shape':
-        return item.data.content || null;
+        // Shapes might have content in data.content
+        if (item.data?.content) {
+          return this.cleanHtmlContent(item.data.content);
+        }
+        return null;
+        
       case 'card':
-        return item.data.title || item.data.content || null;
+        // Cards typically have title and content
+        const cardTitle = item.data?.title || '';
+        const cardContent = item.data?.content ? this.cleanHtmlContent(item.data.content) : '';
+        return [cardTitle, cardContent].filter(Boolean).join(' - ') || null;
+        
+      case 'frame':
+        // Frames have titles
+        return item.data?.title || null;
+        
+      case 'image':
+      case 'unknown':
+        // Skip images and unknown types for text content
+        return null;
+        
       default:
-        // Try to extract any text content available
-        return item.data.content || item.data.text || item.data.title || null;
+        // Try to extract any available text content
+        const availableContent = [
+          item.data?.title,
+          item.data?.content ? this.cleanHtmlContent(item.data.content) : null,
+          item.data?.text
+        ].filter(Boolean);
+        
+        return availableContent.length > 0 ? availableContent.join(' ') : null;
     }
+  }
+
+  private cleanHtmlContent(htmlContent: string): string {
+    if (!htmlContent) return '';
+    
+    // Remove HTML tags and decode common entities
+    return htmlContent
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+      .replace(/&amp;/g, '&') // Decode ampersands
+      .replace(/&lt;/g, '<') // Decode less than
+      .replace(/&gt;/g, '>') // Decode greater than
+      .replace(/&quot;/g, '"') // Decode quotes
+      .replace(/&#39;/g, "'") // Decode apostrophes
+      .trim();
   }
 
   async getItemsByType(boardId: string, itemType: string): Promise<MiroItem[]> {
@@ -115,6 +170,30 @@ export class MiroClient {
       return response.data || [];
     } catch (error) {
       throw new Error(`Failed to fetch items of type ${itemType}: ${(error as Error).message}`);
+    }
+  }
+
+  // Add method to get all sticky notes specifically
+  async getStickyNotes(boardId: string): Promise<string[]> {
+    try {
+      const stickyNotes = await this.getItemsByType(boardId, 'sticky_note');
+      return stickyNotes
+        .map(note => this.extractTextFromItem(note))
+        .filter((content): content is string => content !== null);
+    } catch (error) {
+      throw new Error(`Failed to fetch sticky notes: ${(error as Error).message}`);
+    }
+  }
+
+  // Add method to get all text items specifically
+  async getTextItems(boardId: string): Promise<string[]> {
+    try {
+      const textItems = await this.getItemsByType(boardId, 'text');
+      return textItems
+        .map(item => this.extractTextFromItem(item))
+        .filter((content): content is string => content !== null);
+    } catch (error) {
+      throw new Error(`Failed to fetch text items: ${(error as Error).message}`);
     }
   }
 }
@@ -163,31 +242,60 @@ export class TemplateRecommendationEngine {
     const foundKeywords: string[] = [];
     const matchedCategories: string[] = [];
 
-    // Template categories with enhanced keyword matching
+    // Updated template categories to match miro-server.ts
     const templateCategories = {
-      "brainstorming": {
-        keywords: ["ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts", "mind map", "creative thinking"],
-        weight: 1.0
+      "workshops": {
+        keywords: [
+          "workshop", "facilitation", "meeting", "collaboration", "team building",
+          "icebreaker", "session", "attendees", "participants", "discussion",
+          "facilitated", "breakout", "group exercise", "team activity"
+        ],
+        weight: 0.9,
+        semanticDescription: "Activities and structures for facilitating group sessions, team building, and collaborative work"
       },
-      "planning": {
-        keywords: ["plan", "roadmap", "timeline", "schedule", "strategy", "goals", "objectives", "milestone", "gantt"],
-        weight: 1.0
+      "brainstorming": {
+        keywords: [
+          "ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts",
+          "mind map", "creative thinking", "generate ideas", "explore options",
+          "think outside", "creative session", "idea generation"
+        ],
+        weight: 1.0,
+        semanticDescription: "Tools and frameworks for generating, organizing, and developing creative ideas"
+      },
+      "research": {
+        keywords: [
+          "research", "user research", "market research", "customer insights",
+          "user experience", "ux", "design research", "user testing",
+          "customer journey", "persona", "user feedback"
+        ],
+        weight: 1.0,
+        semanticDescription: "Tools for conducting and organizing user research, market analysis, and design research"
+      },
+      "strategic_planning": {
+        keywords: [
+          "strategy", "planning", "roadmap", "business model", "goals",
+          "objectives", "vision", "mission", "strategy planning",
+          "business planning", "market analysis"
+        ],
+        weight: 1.0,
+        semanticDescription: "Frameworks and tools for strategic business planning and analysis"
       },
       "agile": {
-        keywords: ["sprint", "scrum", "agile", "retrospective", "standup", "backlog", "user stories", "kanban", "velocity"],
-        weight: 1.2
+        keywords: [
+          "sprint", "scrum", "agile", "retrospective", "standup", "backlog",
+          "user stories", "kanban", "velocity", "story points", "sprint planning",
+          "daily standup", "sprint review", "burndown", "epic", "feature"
+        ],
+        weight: 1.2,
+        semanticDescription: "Tools and frameworks for agile project management and development"
       },
-      "design": {
-        keywords: ["design", "prototype", "wireframe", "ux", "ui", "user experience", "mockup", "persona", "usability"],
-        weight: 1.1
-      },
-      "analysis": {
-        keywords: ["analysis", "research", "data", "insights", "swot", "competitive", "market", "metrics", "kpi"],
-        weight: 1.0
-      },
-      "workshops": {
-        keywords: ["workshop", "facilitation", "meeting", "collaboration", "team building", "icebreaker", "session"],
-        weight: 0.9
+      "mapping": {
+        keywords: [
+          "mapping", "diagram", "flowchart", "process", "workflow",
+          "swimlane", "stakeholder", "uml", "system", "architecture"
+        ],
+        weight: 1.0,
+        semanticDescription: "Tools for creating various types of diagrams and visual maps"
       }
     };
 
@@ -196,7 +304,6 @@ export class TemplateRecommendationEngine {
       const matchingKeywords = categoryData.keywords.filter(keyword => 
         allText.includes(keyword.toLowerCase())
       );
-      
       if (matchingKeywords.length > 0) {
         foundKeywords.push(...matchingKeywords);
         // Add category multiple times based on weight for better ranking
@@ -225,13 +332,15 @@ export class TemplateRecommendationEngine {
       "planning": "Strategic planning",
       "brainstorming": "Ideation and creativity",
       "analysis": "Research and analysis",
-      "workshops": "Team collaboration and workshops"
+      "workshops": "Team collaboration and workshops",
+      "meetings": "Meeting management and follow-up",
+      "research": "Research and user insights",
+      "strategic_planning": "Strategic business planning",
+      "mapping": "Process mapping and diagramming"
     };
-
-    const contexts = categories.map(cat => contextMap[cat]).filter(Boolean);
-    
-    return contexts.length > 0 
-      ? `Board appears to focus on: ${contexts.join(", ")}`
+    const contexts = categories.slice(0, 3).map(cat => contextMap[cat]).filter(Boolean);
+    return contexts.length > 0
+      ? `Content appears to focus on: ${contexts.join(", ")}`
       : "General collaborative work";
   }
 }
