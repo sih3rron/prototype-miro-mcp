@@ -436,21 +436,15 @@ class MiroTemplateRecommenderServer {
             type: "object",
             properties: {
               boardId: { type: "string", description: "The Miro board ID" },
-              members: {
+              emails: {
                 type: "array",
-                description: "Array of members to invite (email, role, optional message)",
-                items: {
-                  type: "object",
-                  properties: {
-                    email: { type: "string", description: "Email address of the invitee" },
-                    role: { type: "string", description: "Role for the invitee (viewer, commenter, editor)" },
-                    message: { type: "string", description: "Optional invitation message" }
-                  },
-                  required: ["email", "role"]
-                }
-              }
+                description: "Array of email addresses to invite",
+                items: { type: "string" }
+              },
+              role: { type: "string", description: "Role for the invitee (viewer, commenter, editor)" },
+              message: { type: "string", description: "Optional invitation message" }
             },
-            required: ["boardId", "members"]
+            required: ["boardId", "emails", "role"]
           }
         },
         {
@@ -1093,12 +1087,14 @@ class MiroTemplateRecommenderServer {
 
   private async shareBoard(args: any) {
     if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ boardId: args.boardId, members: args.members, mock: true }, null, 2) }] };
+      return { content: [{ type: "text", text: JSON.stringify({ boardId: args.boardId, emails: args.emails, role: args.role, message: args.message, mock: true }, null, 2) }] };
     }
     try {
-      // Default role to 'editor' if not specified
-      const members = (args.members || []).map((m: any) => ({ ...m, role: m.role || 'editor' }));
-      const result = await this.miroClient.shareBoard(args.boardId, members);
+      const result = await this.miroClient.shareBoard(args.boardId, {
+        emails: args.emails,
+        role: args.role,
+        message: args.message
+      });
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };

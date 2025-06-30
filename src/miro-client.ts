@@ -535,9 +535,13 @@ export class MiroClient {
   }
 
   // Share a board and invite members
-  async shareBoard(boardId: string, members: Array<{ email: string, role: string, message?: string }>): Promise<any> {
+  async shareBoard(boardId: string, params: { emails: string[], role: string, message?: string }): Promise<any> {
     try {
-      const payload = { members };
+      const payload = {
+        emails: params.emails,
+        role: params.role,
+        message: params.message
+      };
       const response = await axios.post(
         `${this.baseUrl}/boards/${boardId}/members`,
         payload,
