@@ -352,7 +352,7 @@ export class MiroClient {
       if (style) payload.style = style;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
-        `${this.baseUrl}/boards/${boardId}/items`,
+        `${this.baseUrl}/boards/${boardId}/texts`,
         payload,
         {
           headers: {
@@ -394,7 +394,11 @@ export class MiroClient {
   // Update a specific text item
   async updateText(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
     try {
-      const payload: any = {};
+      const payload: any = {
+        data,
+        style,
+        parent,
+      };
       if (data) payload.data = data;
       if (style) payload.style = style;
       if (parentId) payload.parent = { id: parentId };
