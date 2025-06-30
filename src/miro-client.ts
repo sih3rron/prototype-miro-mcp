@@ -249,7 +249,7 @@ export class MiroClient {
   // Create a new frame on a board
   async createFrame(boardId: string, title: string, x: number, y: number, width: number, height: number): Promise<any> {
     try {
-      const payload = {
+      const payload: any = {
         data: { title },
         position: { x, y },
         geometry: { width, height }
@@ -342,7 +342,7 @@ export class MiroClient {
   }
 
   // Create a new text item
-  async createText(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+  async createText(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         type: 'text',
@@ -350,6 +350,7 @@ export class MiroClient {
         position,
       };
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
         `${this.baseUrl}/boards/${boardId}/items`,
         payload,
@@ -391,11 +392,12 @@ export class MiroClient {
   }
 
   // Update a specific text item
-  async updateText(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+  async updateText(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/texts/${itemId}`,
         payload,
@@ -437,13 +439,14 @@ export class MiroClient {
   }
 
   // Create a new sticky note
-  async createSticky(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+  async createSticky(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         data,
         position,
       };
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
         `${this.baseUrl}/boards/${boardId}/sticky_notes`,
         payload,
@@ -485,11 +488,12 @@ export class MiroClient {
   }
 
   // Update a specific sticky note
-  async updateSticky(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/sticky_notes/${itemId}`,
         payload,
@@ -554,10 +558,11 @@ export class MiroClient {
   }
 
   // Create a new card item
-  async createCard(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+  async createCard(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = { data, position };
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
         `${this.baseUrl}/boards/${boardId}/cards`,
         payload,
@@ -599,11 +604,12 @@ export class MiroClient {
   }
 
   // Update a specific card item
-  async updateCard(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+  async updateCard(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/cards/${itemId}`,
         payload,
