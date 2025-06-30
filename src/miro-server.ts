@@ -447,6 +447,58 @@ class MiroTemplateRecommenderServer {
             },
             required: ["boardId", "members"]
           }
+        },
+        {
+          name: "create_card",
+          description: "Create a new card item on a Miro board.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              data: { type: "object", description: "Card item data (title, description, etc.)" },
+              position: { type: "object", description: "Position of the card (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              style: { type: "object", description: "Card style (optional)" }
+            },
+            required: ["boardId", "data", "position"]
+          }
+        },
+        {
+          name: "get_card",
+          description: "Get a specific card item from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The card item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "update_card",
+          description: "Update a card item on a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The card item ID" },
+              data: { type: "object", description: "Card data to update (title, description, etc.)" },
+              style: { type: "object", description: "Card style to update (optional)" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "delete_card",
+          description: "Delete a specific card item from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The card item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
         }
       ]
     }));
@@ -492,6 +544,14 @@ class MiroTemplateRecommenderServer {
             return await this.deleteSticky(request.params.arguments);
           case "share_board":
             return await this.shareBoard(request.params.arguments);
+          case "create_card":
+            return await this.createCard(request.params.arguments);
+          case "get_card":
+            return await this.getCard(request.params.arguments);
+          case "update_card":
+            return await this.updateCard(request.params.arguments);
+          case "delete_card":
+            return await this.deleteCard(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1032,6 +1092,54 @@ class MiroTemplateRecommenderServer {
       // Default role to 'editor' if not specified
       const members = (args.members || []).map((m: any) => ({ ...m, role: m.role || 'editor' }));
       const result = await this.miroClient.shareBoard(args.boardId, members);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createCard(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-card-id", ...args }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.createCard(args.boardId, args.data, args.position, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getCard(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.getCard(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async updateCard(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.updateCard(args.boardId, args.itemId, args.data, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async deleteCard(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.deleteCard(args.boardId, args.itemId);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };

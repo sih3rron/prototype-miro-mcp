@@ -552,6 +552,97 @@ export class MiroClient {
       throw error;
     }
   }
+
+  // Create a new card item
+  async createCard(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+    try {
+      const payload: any = { data, position };
+      if (style) payload.style = style;
+      const response = await axios.post(
+        `${this.baseUrl}/boards/${boardId}/cards`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Get a specific card item
+  async getCard(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/boards/${boardId}/cards/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Update a specific card item
+  async updateCard(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+    try {
+      const payload: any = {};
+      if (data) payload.data = data;
+      if (style) payload.style = style;
+      const response = await axios.patch(
+        `${this.baseUrl}/boards/${boardId}/cards/${itemId}`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Delete a specific card item
+  async deleteCard(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/boards/${boardId}/cards/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return { success: true, status: response.status };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
 }
 
 // Enhanced template recommendation logic
