@@ -222,6 +222,231 @@ class MiroTemplateRecommenderServer {
             },
             anyOf: [ { required: ["boardId"] }, { required: ["meetingNotes"] } ]
           }
+        },
+        {
+          name: "create_miro_board",
+          description: "Create a new Miro board. Returns the created board info.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The name of the new board" },
+              description: { type: "string", description: "Optional description for the board" },
+              sharingPolicy: {
+                type: "object",
+                description: "Optional sharing policy for the board (see Miro API)",
+                properties: {
+                  access: { type: "string", description: "Access level (private, view, comment, edit)" }
+                },
+                required: []
+              }
+            },
+            required: ["name"]
+          }
+        },
+        {
+          name: "update_item_position_or_parent",
+          description: "Update the position or parent of an item on a Miro board.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The item ID to update" },
+              position: {
+                type: "object",
+                description: "New position for the item (x, y)",
+                properties: {
+                  x: { type: "number", description: "X coordinate" },
+                  y: { type: "number", description: "Y coordinate" }
+                },
+                required: ["x", "y"]
+              },
+              parentId: { type: "string", description: "Optional new parent frame ID" }
+            },
+            required: ["boardId", "itemId", "position"]
+          }
+        },
+        {
+          name: "create_frame",
+          description: "Create a new frame on a Miro board.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              title: { type: "string", description: "Title of the frame" },
+              x: { type: "number", description: "X coordinate of the frame center" },
+              y: { type: "number", description: "Y coordinate of the frame center" },
+              width: { type: "number", description: "Width of the frame" },
+              height: { type: "number", description: "Height of the frame" }
+            },
+            required: ["boardId", "title", "x", "y", "width", "height"]
+          }
+        },
+        {
+          name: "get_frame",
+          description: "Get a specific frame from a Miro board by board ID and frame ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The frame (item) ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "update_frame",
+          description: "Update a frame on a Miro board by board ID and frame ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The frame (item) ID" },
+              data: { type: "object", description: "Frame data to update (title, etc.)" },
+              style: { type: "object", description: "Frame style to update (optional)" },
+              geometry: { type: "object", description: "Frame geometry to update (width, height, etc.) (optional)" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "delete_frame",
+          description: "Delete a specific frame from a Miro board by board ID and frame ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The frame (item) ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "create_text",
+          description: "Create a new text item on a Miro board.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              data: { type: "object", description: "Text item data (content, etc.)" },
+              position: { type: "object", description: "Position of the text item (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              style: { type: "object", description: "Text style (optional)" }
+            },
+            required: ["boardId", "data", "position"]
+          }
+        },
+        {
+          name: "get_text_item",
+          description: "Get a specific text item from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The text item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "update_text",
+          description: "Update a text item on a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The text item ID" },
+              data: { type: "object", description: "Text data to update (content, etc.)" },
+              style: { type: "object", description: "Text style to update (optional)" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "delete_text",
+          description: "Delete a specific text item from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The text item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "create_sticky",
+          description: "Create a new sticky note on a Miro board.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              data: { type: "object", description: "Sticky note data (content, etc.)" },
+              position: { type: "object", description: "Position of the sticky note (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              style: { type: "object", description: "Sticky note style (optional)" }
+            },
+            required: ["boardId", "data", "position"]
+          }
+        },
+        {
+          name: "get_sticky",
+          description: "Get a specific sticky note from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The sticky note item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "update_sticky",
+          description: "Update a sticky note on a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The sticky note item ID" },
+              data: { type: "object", description: "Sticky note data to update (content, etc.)" },
+              style: { type: "object", description: "Sticky note style to update (optional)" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "delete_sticky",
+          description: "Delete a specific sticky note from a Miro board by board ID and item ID.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemId: { type: "string", description: "The sticky note item ID" }
+            },
+            required: ["boardId", "itemId"]
+          }
+        },
+        {
+          name: "share_board",
+          description: "Share a Miro board and invite new members by email.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              members: {
+                type: "array",
+                description: "Array of members to invite (email, role, optional message)",
+                items: {
+                  type: "object",
+                  properties: {
+                    email: { type: "string", description: "Email address of the invitee" },
+                    role: { type: "string", description: "Role for the invitee (viewer, commenter, editor)" },
+                    message: { type: "string", description: "Optional invitation message" }
+                  },
+                  required: ["email", "role"]
+                }
+              }
+            },
+            required: ["boardId", "members"]
+          }
         }
       ]
     }));
@@ -237,6 +462,36 @@ class MiroTemplateRecommenderServer {
             return await this.getBoardAnalysis(request.params.arguments);
           case "recommend_templates":
             return await this.recommendTemplates(request.params.arguments);
+          case "create_miro_board":
+            return await this.createMiroBoard(request.params.arguments);
+          case "update_item_position_or_parent":
+            return await this.updateItemPositionOrParent(request.params.arguments);
+          case "create_frame":
+            return await this.createFrame(request.params.arguments);
+          case "get_frame":
+            return await this.getFrame(request.params.arguments);
+          case "update_frame":
+            return await this.updateFrame(request.params.arguments);
+          case "delete_frame":
+            return await this.deleteFrame(request.params.arguments);
+          case "create_text":
+            return await this.createText(request.params.arguments);
+          case "get_text_item":
+            return await this.getTextItem(request.params.arguments);
+          case "update_text":
+            return await this.updateText(request.params.arguments);
+          case "delete_text":
+            return await this.deleteText(request.params.arguments);
+          case "create_sticky":
+            return await this.createSticky(request.params.arguments);
+          case "get_sticky":
+            return await this.getSticky(request.params.arguments);
+          case "update_sticky":
+            return await this.updateSticky(request.params.arguments);
+          case "delete_sticky":
+            return await this.deleteSticky(request.params.arguments);
+          case "share_board":
+            return await this.shareBoard(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -583,6 +838,204 @@ class MiroTemplateRecommenderServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error("Miro Template Recommender MCP server running on stdio");
+  }
+
+  private async createMiroBoard(args: any) {
+    const defaultSharingPolicy = {
+      "policy": {
+        "sharingPolicy": {
+          "access": "edit",
+          "inviteToAccountAndBoardLinkAccess": "editor",
+          "organizationAccess": "edit",
+          "teamAccess": "edit"
+        },
+        "permissionsPolicy": {
+          "collaborationToolsStartAccess": "all_editors",
+          "copyAccess": "anyone",
+          "sharingAccess": "team_members_with_editing_rights"
+        }
+      }
+    }; 
+    const sharingPolicy = args.sharingPolicy || defaultSharingPolicy;
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-board-id", name: args.name, description: args.description || "", sharingPolicy }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.createBoard(args.name, args.description, sharingPolicy);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async updateItemPositionOrParent(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, position: args.position, parentId: args.parentId || null }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.updateItemPositionOrParent(args.boardId, args.itemId, args.position, args.parentId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createFrame(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-frame-id", boardId: args.boardId, title: args.title, x: args.x, y: args.y, width: args.width, height: args.height }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.createFrame(args.boardId, args.title, args.x, args.y, args.width, args.height);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getFrame(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.getFrame(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async updateFrame(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.updateFrame(args.boardId, args.itemId, args.data, args.style, args.geometry);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async deleteFrame(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.deleteFrame(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createText(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-text-id", ...args }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.createText(args.boardId, args.data, args.position, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getTextItem(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.getTextItem(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async updateText(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.updateText(args.boardId, args.itemId, args.data, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async deleteText(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.deleteText(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createSticky(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-sticky-id", ...args }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.createSticky(args.boardId, args.data, args.position, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getSticky(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.getSticky(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async updateSticky(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.updateSticky(args.boardId, args.itemId, args.data, args.style);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async deleteSticky(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.deleteSticky(args.boardId, args.itemId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async shareBoard(args: any) {
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ boardId: args.boardId, members: args.members, mock: true }, null, 2) }] };
+    }
+    try {
+      // Default role to 'editor' if not specified
+      const members = (args.members || []).map((m: any) => ({ ...m, role: m.role || 'editor' }));
+      const result = await this.miroClient.shareBoard(args.boardId, members);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
   }
 }
 

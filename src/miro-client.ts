@@ -196,6 +196,362 @@ export class MiroClient {
       throw new Error(`Failed to fetch text items: ${(error as Error).message}`);
     }
   }
+
+  // Create a new Miro board
+  async createBoard(name: string, description?: string, sharingPolicy?: any): Promise<any> {
+    try {
+      const payload: any = { name };
+      if (description) payload.description = description;
+      if (sharingPolicy) payload.policy = { sharingPolicy };
+      const response = await axios.post(
+        `${this.baseUrl}/boards`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Update item position or parent
+  async updateItemPositionOrParent(boardId: string, itemId: string, position: { x: number, y: number }, parentId?: string): Promise<any> {
+    try {
+      const payload: any = { position };
+      if (parentId) payload.parent = { id: parentId };
+      const response = await axios.patch(
+        `${this.baseUrl}/boards/${boardId}/items/${itemId}`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Create a new frame on a board
+  async createFrame(boardId: string, title: string, x: number, y: number, width: number, height: number): Promise<any> {
+    try {
+      const payload = {
+        data: { title },
+        position: { x, y },
+        geometry: { width, height }
+      };
+      const response = await axios.post(
+        `${this.baseUrl}/boards/${boardId}/frames`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Get a specific frame item
+  async getFrame(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/boards/${boardId}/frames/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Update a specific frame item
+  async updateFrame(boardId: string, itemId: string, data?: any, style?: any, geometry?: any): Promise<any> {
+    try {
+      const payload: any = {};
+      if (data) payload.data = data;
+      if (style) payload.style = style;
+      if (geometry) payload.geometry = geometry;
+      const response = await axios.patch(
+        `${this.baseUrl}/boards/${boardId}/frames/${itemId}`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Delete a specific frame item
+  async deleteFrame(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/boards/${boardId}/frames/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return { success: true, status: response.status };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Create a new text item
+  async createText(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+    try {
+      const payload: any = {
+        type: 'text',
+        data,
+        position,
+      };
+      if (style) payload.style = style;
+      const response = await axios.post(
+        `${this.baseUrl}/boards/${boardId}/items`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Get a specific text item
+  async getTextItem(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/boards/${boardId}/texts/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Update a specific text item
+  async updateText(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+    try {
+      const payload: any = {};
+      if (data) payload.data = data;
+      if (style) payload.style = style;
+      const response = await axios.patch(
+        `${this.baseUrl}/boards/${boardId}/texts/${itemId}`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Delete a specific text item
+  async deleteText(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/boards/${boardId}/texts/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return { success: true, status: response.status };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Create a new sticky note
+  async createSticky(boardId: string, data: any, position: { x: number, y: number }, style?: any): Promise<any> {
+    try {
+      const payload: any = {
+        data,
+        position,
+      };
+      if (style) payload.style = style;
+      const response = await axios.post(
+        `${this.baseUrl}/boards/${boardId}/sticky_notes`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Get a specific sticky note
+  async getSticky(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/boards/${boardId}/sticky_notes/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Update a specific sticky note
+  async updateSticky(boardId: string, itemId: string, data?: any, style?: any): Promise<any> {
+    try {
+      const payload: any = {};
+      if (data) payload.data = data;
+      if (style) payload.style = style;
+      const response = await axios.patch(
+        `${this.baseUrl}/boards/${boardId}/sticky_notes/${itemId}`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Delete a specific sticky note
+  async deleteSticky(boardId: string, itemId: string): Promise<any> {
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/boards/${boardId}/sticky_notes/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return { success: true, status: response.status };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  // Share a board and invite members
+  async shareBoard(boardId: string, members: Array<{ email: string, role: string, message?: string }>): Promise<any> {
+    try {
+      const payload = { members };
+      const response = await axios.post(
+        `${this.baseUrl}/boards/${boardId}/members`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText} - ${JSON.stringify(error.response?.data)}`);
+      }
+      throw error;
+    }
+  }
 }
 
 // Enhanced template recommendation logic
