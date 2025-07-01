@@ -342,13 +342,14 @@ export class MiroClient {
   }
 
   // Create a new text item
-  async createText(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
+  async createText(boardId: string, data: any, position: { x: number, y: number }, geometry?: { width: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
-        type: 'text',
         data,
         position,
       };
+
+      if (geometry) payload.geometry = geometry;
       if (style) payload.style = style;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
@@ -392,7 +393,7 @@ export class MiroClient {
   }
 
   // Update a specific text item
-  async updateText(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
+  async updateText(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number }, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         data,
@@ -401,6 +402,7 @@ export class MiroClient {
       };
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (geometry) payload.geometry = geometry;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/texts/${itemId}`,
@@ -443,12 +445,13 @@ export class MiroClient {
   }
 
   // Create a new sticky note
-  async createSticky(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
+  async createSticky(boardId: string, data: any, position: { x: number, y: number, }, geometry?: { width: number}, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         data,
-        position,
+        position
       };
+      if (geometry) payload.geometry = geometry;
       if (style) payload.style = style;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
@@ -492,11 +495,12 @@ export class MiroClient {
   }
 
   // Update a specific sticky note
-  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
+  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number}, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (geometry) payload.geometry = geometry;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/sticky_notes/${itemId}`,
@@ -566,9 +570,10 @@ export class MiroClient {
   }
 
   // Create a new card item
-  async createCard(boardId: string, data: any, position: { x: number, y: number }, style?: any, parentId?: string): Promise<any> {
+  async createCard(boardId: string, data: any, position: { x: number, y: number }, geometry?: { height: number, width: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = { data, position };
+      if (geometry) payload.geometry = geometry;
       if (style) payload.style = style;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.post(
@@ -612,11 +617,12 @@ export class MiroClient {
   }
 
   // Update a specific card item
-  async updateCard(boardId: string, itemId: string, data?: any, style?: any, parentId?: string): Promise<any> {
+  async updateCard(boardId: string, itemId: string, data?: any, style?: any, geometry?: { height: number, width: number }, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
       if (style) payload.style = style;
+      if (geometry) payload.geometry = geometry;
       if (parentId) payload.parent = { id: parentId };
       const response = await axios.patch(
         `${this.baseUrl}/boards/${boardId}/cards/${itemId}`,

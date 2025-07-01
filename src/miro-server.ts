@@ -136,8 +136,6 @@ interface MiroItem {
     content?: string;
     text?: string;
     title?: string;
-    format?: string;
-    showContent?: boolean;
   };
   position: {
     x: number;
@@ -146,7 +144,6 @@ interface MiroItem {
   style?: any;
   geometry?: any;
   parent?: any;
-  isSupported?: boolean;
 }
 
 interface MiroBoardInfo {
