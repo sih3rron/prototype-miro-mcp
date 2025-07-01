@@ -445,7 +445,7 @@ export class MiroClient {
   }
 
   // Create a new sticky note
-  async createSticky(boardId: string, data: any, position: { x: number, y: number, }, geometry?: { width: number}, style?: any, parentId?: string): Promise<any> {
+  async createSticky(boardId: string, data: any, position: { x: number, y: number, }, geometry?: { width: number, height: number}, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         data,
@@ -495,7 +495,7 @@ export class MiroClient {
   }
 
   // Update a specific sticky note
-  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number}, parentId?: string): Promise<any> {
+  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number, height: number}, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
