@@ -80,9 +80,6 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
-
-# cursor rules and settings
-.cursor/
 .DS_Store
 
 # parcel-bundler cache (https://parceljs.org/)
