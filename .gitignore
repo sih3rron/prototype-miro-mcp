@@ -83,6 +83,7 @@ web_modules/
 
 # cursor rules and settings
 .cursor/
+.DS_Store
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

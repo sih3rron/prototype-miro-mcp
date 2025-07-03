@@ -162,6 +162,16 @@ class MiroTemplateRecommenderServer {
       name: "miro-template-recommender",
       version: "0.3.1",
       capabilities: { tools: {} },
+      description: `Miro Template Recommender with integrated Miro board management.
+
+POSITIONING RULES:
+- When nesting items inside a frame, always calculate the position from the top-left corner of the parent.
+- When nesting items, calculate positions from (0,0) relative to the parent's top-left corner
+- This ensures consistent and predictable placement within parent boundaries
+
+NESTED ITEM GUIDELINES:
+- Set item geometry.width to fit within parent object confines
+- Adjust style.fontSize (in dp) as needed so content fits within available width`,
     });
     this.setupToolHandlers();
     this.server.onerror = (error) => console.error("[MCP Error]", error);
@@ -217,7 +227,7 @@ class MiroTemplateRecommenderServer {
               meetingNotes: { type: "string", description: "Meeting notes text to analyze" },
               maxRecommendations: { type: "number", description: "Maximum number of template recommendations (default: 5)", default: 5 }
             },
-            anyOf: [ { required: ["boardId"] }, { required: ["meetingNotes"] } ]
+            anyOf: [{ required: ["boardId"] }, { required: ["meetingNotes"] }]
           }
         },
         {
@@ -582,7 +592,7 @@ class MiroTemplateRecommenderServer {
         content: [{ type: "text", text: JSON.stringify(mockContent, null, 2) }]
       };
     }
-    
+
     try {
       console.error(`Attempting to get board content for board: ${boardId}`);
       const content = await this.miroClient.getBoardContent(boardId);
@@ -596,11 +606,11 @@ class MiroTemplateRecommenderServer {
       try {
         const boardInfo = await this.miroClient.getBoardInfo(boardId);
         console.error(`Retrieved board info with ${boardInfo.items.length} items`);
-        
+
         // Extract any available content manually
         const fallbackContent: string[] = [];
         if (boardInfo.name) fallbackContent.push(boardInfo.name);
-        
+
         for (const item of boardInfo.items) {
           if (item.data?.content) {
             const cleanContent = this.cleanHtmlContent(item.data.content);
@@ -613,7 +623,7 @@ class MiroTemplateRecommenderServer {
             fallbackContent.push(item.data.text);
           }
         }
-        
+
         return {
           content: [{ type: "text", text: JSON.stringify(fallbackContent, null, 2) }]
         };
@@ -625,7 +635,7 @@ class MiroTemplateRecommenderServer {
 
   private cleanHtmlContent(htmlContent: string): string {
     if (!htmlContent) return '';
-    
+
     // Remove HTML tags and decode common entities
     return htmlContent
       .replace(/<[^>]*>/g, '') // Remove HTML tags
@@ -650,7 +660,7 @@ class MiroTemplateRecommenderServer {
         content: [{ type: "text", text: JSON.stringify(mockItems, null, 2) }]
       };
     }
-    
+
     try {
       const boardInfo = await this.miroClient.getBoardInfo(boardId);
       return {
@@ -665,7 +675,7 @@ class MiroTemplateRecommenderServer {
   private async getBoardAnalysis(args: any) {
     const { boardId } = args;
     let boardContent: string[];
-    
+
     if (!this.miroClient) {
       boardContent = [
         "Sprint planning for Q2 2024",
@@ -682,7 +692,7 @@ class MiroTemplateRecommenderServer {
           const boardInfo = await this.miroClient.getBoardInfo(boardId);
           boardContent = [];
           if (boardInfo.name) boardContent.push(boardInfo.name);
-          
+
           for (const item of boardInfo.items) {
             if (item.data?.content) {
               const cleanContent = this.cleanHtmlContent(item.data.content);
@@ -696,7 +706,7 @@ class MiroTemplateRecommenderServer {
         }
       }
     }
-    
+
     const analysis = this.analyzeContent(boardContent);
     return {
       content: [{
@@ -718,7 +728,7 @@ class MiroTemplateRecommenderServer {
     const { boardId, meetingNotes, maxRecommendations = 5 } = args;
     let content: string[];
     let contentType: string;
-    
+
     if (boardId) {
       if (!this.miroClient) {
         content = [
@@ -737,7 +747,7 @@ class MiroTemplateRecommenderServer {
             const boardInfo = await this.miroClient.getBoardInfo(boardId);
             content = [];
             if (boardInfo.name) content.push(boardInfo.name);
-            
+
             for (const item of boardInfo.items) {
               if (item.data?.content) {
                 const cleanContent = this.cleanHtmlContent(item.data.content);
@@ -758,10 +768,10 @@ class MiroTemplateRecommenderServer {
     } else {
       throw new Error("Please provide either a Miro board ID or meeting notes text.");
     }
-    
+
     const analysis = this.analyzeContent(content);
     const recommendations = this.generateRecommendations(analysis, maxRecommendations);
-    
+
     return {
       content: [{
         type: "text",
@@ -783,22 +793,22 @@ class MiroTemplateRecommenderServer {
   private parseMeetingNotes(meetingNotes: string): string[] {
     const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
     const content: string[] = [];
-    
+
     lines.forEach(line => {
       const trimmedLine = line.trim();
       if (trimmedLine.length < 3) return;
-      
+
       const cleanedLine = trimmedLine
         .replace(/^[-*•]\s*/, '')
         .replace(/^\d+\.\s*/, '')
         .replace(/^#{1,6}\s*/, '')
         .trim();
-        
+
       if (cleanedLine.length > 0) {
         content.push(cleanedLine);
       }
     });
-    
+
     return content;
   }
 
@@ -810,25 +820,25 @@ class MiroTemplateRecommenderServer {
     const allText = content.join(" ").toLowerCase();
     const foundKeywords: string[] = [];
     const categoryScores: { [key: string]: number } = {};
-    
+
     for (const [category, categoryData] of Object.entries(TEMPLATE_CATEGORIES)) {
       const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category as TemplateCategory]?.keywords ?? [];
       const matchingKeywords = categoryKeywords.filter(keyword =>
         allText.includes(keyword.toLowerCase())
       );
-      
+
       if (matchingKeywords.length > 0) {
         foundKeywords.push(...matchingKeywords);
         categoryScores[category] = matchingKeywords.length;
       }
     }
-    
+
     const sortedCategories = Object.entries(categoryScores)
       .sort(([, a], [, b]) => b - a)
       .map(([category]) => category as TemplateCategory);
-    
+
     const context = this.generateContextDescription(sortedCategories);
-    
+
     return {
       keywords: [...new Set(foundKeywords)],
       categories: sortedCategories,
@@ -841,7 +851,7 @@ class MiroTemplateRecommenderServer {
     maxRecommendations: number
   ) {
     const recommendations: any[] = [];
-    
+
     for (const category of analysis.categories) {
       const categoryTemplates = TEMPLATE_CATEGORIES[category]?.templates || [];
       recommendations.push(...categoryTemplates.map((template: any) => ({
@@ -850,7 +860,7 @@ class MiroTemplateRecommenderServer {
         relevanceScore: this.calculateRelevanceScore(analysis.keywords, category)
       })));
     }
-    
+
     return recommendations
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
       .slice(0, maxRecommendations)
@@ -877,7 +887,7 @@ class MiroTemplateRecommenderServer {
       "strategic_planning": "Strategic business planning",
       "mapping": "Process mapping and diagramming"
     };
-    
+
     const contexts = categories.slice(0, 3).map(cat => contextMap[cat]).filter(Boolean);
     return contexts.length > 0
       ? `Content appears to focus on: ${contexts.join(", ")}`
@@ -898,7 +908,7 @@ class MiroTemplateRecommenderServer {
     } else {
       console.error("No Miro access token found, using mock data");
     }
-    
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error("Miro Template Recommender MCP server running on stdio");
