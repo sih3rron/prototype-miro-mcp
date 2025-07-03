@@ -79,13 +79,13 @@ src/
 
 ## API Reference
 
-### Miro Template Recommender Tools
+### Miro Template Recommendation Tools
 
 #### `recommendTemplates`
 Analyzes content and returns template recommendations.
 
 **Parameters:**
-- `boardId` (optional): The Miro board ID
+- `boardId` (optional): The Miro board ID to analyze
 - `meetingNotes` (optional): Meeting notes text to analyze
 - `maxRecommendations` (optional): Maximum number of recommendations (default: 5)
 
@@ -109,13 +109,52 @@ Analyzes content and returns template recommendations.
 }
 ```
 
-#### Example Usage
-```typescript
-const result = await recommendTemplates({
-  meetingNotes: "Discussed project timeline and need to plan workshop",
-  maxRecommendations: 3
-});
-```
+#### `get_board_content`
+Extract all text content from a Miro board.
+
+**Parameters:**
+- `boardId`: The Miro board ID
+
+#### `get_board_analysis`
+Get detailed analysis of board content with keywords and categories.
+
+**Parameters:**
+- `boardId`: The Miro board ID
+
+### Miro Board Management Tools
+
+#### Board Operations
+- `create_miro_board`: Create a new Miro board
+- `get_board_content`: Extract text content from board
+- `get_all_items`: Get all items from board
+
+#### Frame Management
+- `create_frame`: Create a new frame with positioning
+- `get_frame`: Retrieve frame details
+- `update_frame`: Modify frame properties
+- `delete_frame`: Remove a frame
+
+#### Text Item Management
+- `create_text`: Create text items with styling
+- `get_text_item`: Retrieve text item details
+- `update_text`: Modify text content and styling
+- `delete_text`: Remove text items
+
+#### Sticky Note Management
+- `create_sticky`: Create sticky notes
+- `get_sticky`: Retrieve sticky note details
+- `update_sticky`: Modify sticky note content
+- `delete_sticky`: Remove sticky notes
+
+#### Card Management
+- `create_card`: Create cards with content
+- `get_card`: Retrieve card details
+- `update_card`: Modify card properties
+- `delete_card`: Remove cards
+
+#### Utility Operations
+- `update_item_position_or_parent`: Reposition items or change parent
+- `share_board`: Share boards with team members
 
 ### Gong Call Analysis Tools
 
@@ -128,7 +167,7 @@ Search Gong calls by customer name and date range.
 - `toDate` (optional): End date (ISO 8601)
 
 #### `select_gong_call`
-Select a specific call from search results by selection number or call ID.
+Select a specific call from search results.
 
 **Parameters:**
 - `callId`: Direct Gong call ID to select
@@ -136,63 +175,185 @@ Select a specific call from search results by selection number or call ID.
 - `customerName`: Original customer name used in search (required with selectionNumber)
 
 #### `get_gong_call_details`
-Fetch highlights and key points for a Gong call by callId.
+Fetch highlights and key points for a Gong call.
 
 **Parameters:**
 - `callId`: The Gong call ID
 
-#### Example Usage
+## Template Categories
+
+The system supports the following template categories with intelligent keyword matching:
+
+### 🎯 **Workshops**
+- Meeting agendas, icebreakers, team charters, design sprints
+- Keywords: workshop, facilitation, collaboration, team building
+
+### 🛠️ **Brainstorming**
+- Mind maps, affinity diagrams, SCAMPER, six thinking hats
+- Keywords: ideas, creativity, innovation, ideation
+
+### 🔍 **Research**
+- Customer journey maps, personas, empathy maps, competitive analysis
+- Keywords: research, user research, customer insights, UX
+
+### 📋 **Strategic Planning**
+- Business model canvas, SWOT analysis, OKR planning, roadmaps
+- Keywords: strategy, planning, business model, goals
+
+### ⚡ **Agile**
+- Sprint planning, retrospectives, kanban boards, user story mapping
+- Keywords: sprint, scrum, agile, backlog, user stories
+
+### 📋️ **Mapping**
+- UML diagrams, flowcharts, process maps, architecture diagrams
+- Keywords: mapping, diagram, flowchart, process, workflow
+
+## Example Usage
+
+### Template Recommendation
+```typescript
+// Analyze meeting notes
+const result = await recommendTemplates({
+  meetingNotes: "Discussed project timeline and need to plan workshop for team alignment",
+  maxRecommendations: 3
+});
+
+// Analyze existing board
+const boardResult = await recommendTemplates({
+  boardId: "uXjVKMOJbXg=",
+  maxRecommendations: 5
+});
+```
+
+### Board Management
+```typescript
+// Create a new board
+const board = await createMiroBoard({
+  name: "Project Planning Workshop",
+  description: "Board for our upcoming planning session"
+});
+
+// Add content to board
+const frame = await createFrame({
+  boardId: board.id,
+  title: "Agenda",
+  x: 100,
+  y: 100,
+  width: 400,
+  height: 300
+});
+
+const text = await createText({
+  boardId: board.id,
+  data: { content: "1. Project Overview" },
+  position: { x: 120, y: 120 },
+  parentId: frame.id
+});
+```
+
+### Gong Call Analysis
 ```typescript
 // Search for calls
-const searchResult = await search_gong_calls({ customerName: "Acme Corp", fromDate: "2024-01-01", toDate: "2024-03-31" });
+const searchResult = await searchGongCalls({ 
+  customerName: "Acme Corp", 
+  fromDate: "2024-01-01", 
+  toDate: "2024-03-31" 
+});
 
-// Select a call
-const selected = await select_gong_call({ selectionNumber: 1, customerName: "Acme Corp" });
+// Select and analyze a call
+const selected = await selectGongCall({ 
+  selectionNumber: 1, 
+  customerName: "Acme Corp" 
+});
 
-// Get call details
-const details = await get_gong_call_details({ callId: selected.callId });
+const details = await getGongCallDetails({ 
+  callId: selected.callId 
+});
+```
+
+## Configuration
+
+### Environment Variables
+```bash
+# Required for Miro functionality
+MIRO_ACCESS_TOKEN=your_miro_access_token
+
+# Required for Gong functionality
+GONG_KEY=your_gong_api_key
+GONG_SECRET=your_gong_api_secret
+```
+
+### Package Scripts
+```bash
+# Build
+npm run build
+
+# Production
+npm start                    # Combined server
+npm run start:miro          # Miro server only
+npm run start:gong          # Gong server only
+
+# Development
+npm run dev                 # Combined with watch
+npm run dev:miro           # Miro server with watch
+npm run dev:gong           # Gong server with watch
 ```
 
 ## Extending the System
 
-### Adding New Template Categories (Miro)
-1. Update the `TEMPLATE_CATEGORIES` object in either `index.ts` or `miro-server.ts` (depending on which server you use)
+### Adding New Template Categories
+1. Update the `TEMPLATE_CATEGORIES` object in `src/miro-server.ts`
 2. Add new categories with:
    - Keywords for matching
-   - Template definitions
-   - Category weight for scoring (if applicable)
+   - Template definitions with URLs
+   - Semantic descriptions
 
 ### Customizing Analysis
-- Add more sophisticated keyword matching (in `index.ts`, `miro-server.ts`, or `miro-client.ts`)
-- Implement semantic analysis
-- Support additional content types
+- Enhance keyword matching algorithms
+- Implement semantic analysis using embeddings
+- Add support for additional content types
 
-### Adding/Customizing Gong Tools
-- Update or extend tool handlers in `gong-server.ts` or `index.ts`
-- Add new Gong API endpoints or analysis logic as needed
+### Adding New Miro Operations
+- Extend the `MiroClient` class in `src/miro-client.ts`
+- Add new tool handlers in the server files
+- Implement additional board item types
 
-## Security
-- Store API keys and tokens securely using environment variables
-- Implement proper error handling for API calls
-- Consider rate limiting for API requests
+## Security & Best Practices
+
+- **API Key Management**: Store credentials securely using environment variables
+- **Rate Limiting**: Built-in retry logic with exponential backoff for API calls
+- **Error Handling**: Comprehensive error handling for API failures
+- **Caching**: Intelligent caching for Gong API pagination results
 
 ## Limitations
-- Requires Miro and/or Gong API access for full functionality
-- Recommendations and analysis are based on predefined categories and keywords
-- Analysis is primarily keyword-based
+
+- Requires valid Miro and/or Gong API credentials
+- Template recommendations based on keyword matching (not AI-powered)
+- Analysis limited to text content extraction
+- Gong API rate limits apply
 
 ## Contributing
+
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
+
 MIT License - see LICENSE file for details.
 
 ## Support
+
 For issues related to:
 - **Miro API**: Check [Miro Developer docs](https://developers.miro.com/)
 - **Gong API**: See [Gong API docs](https://developers.gong.io/)
 - **This project**: Create an issue in this repository
+
+## Version History
+
+- **v0.1.0**: Initial release with Miro template recommendations
+- **v0.2.0**: Added Gong call analysis integration
+- **v0.3.0**: Enhanced board management capabilities
+- **v0.3.1**: Improved positioning and parent-child relationships
