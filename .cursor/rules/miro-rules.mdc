@@ -1,9 +1,4 @@
 ---
-description: 
-globs: src/miro-*.ts
-alwaysApply: false
----
----
 description: Ensure correct positioning of nested Miro items using the `relativeTo` attribute in the position object. Applies only to Miro MCP and Miro MCP tools.
 globs: src/miro-*.ts
 ruleType: auto-attached
