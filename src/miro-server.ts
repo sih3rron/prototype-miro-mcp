@@ -513,6 +513,17 @@ NESTED ITEM GUIDELINES:
             },
             required: ["boardId", "itemId"]
           }
+        },
+        {
+          name: "get_sticky_notes",
+          description: "Get all sticky notes from a Miro board as an array of strings.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" }
+            },
+            required: ["boardId"]
+          }
         }
       ]
     }));
@@ -566,6 +577,8 @@ NESTED ITEM GUIDELINES:
             return await this.updateCard(request.params.arguments);
           case "delete_card":
             return await this.deleteCard(request.params.arguments);
+          case "get_sticky_notes":
+            return await this.getStickyNotes(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1170,6 +1183,31 @@ NESTED ITEM GUIDELINES:
       const result = await this.miroClient.deleteCard(args.boardId, args.itemId);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getStickyNotes(args: any) {
+    const { boardId } = args;
+    if (!this.miroClient) {
+      const mockStickyNotes = [
+        "Sprint planning for Q2 2024",
+        "User story: As a customer, I want to track my order",
+        "Retrospective action items",
+        "Design system components"
+      ];
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockStickyNotes, null, 2) }]
+      };
+    }
+
+    try {
+      const stickyNotes = await this.miroClient.getStickyNotes(boardId);
+      return {
+        content: [{ type: "text", text: JSON.stringify(stickyNotes, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error getting sticky notes:`, error);
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
     }
   }

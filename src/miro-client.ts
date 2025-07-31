@@ -36,15 +36,61 @@ export class MiroClient {
     this.accessToken = accessToken;
   }
 
-  private async makeRequest(endpoint: string): Promise<any> {
+  private async makeRequest(endpoint: string, usePagination: boolean = false): Promise<any> {
     try {
-      const response = await axios.get(`${this.baseUrl}${endpoint}`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      return response.data;
+      if (!usePagination) {
+        // Single request without pagination
+        const response = await axios.get(`${this.baseUrl}${endpoint}`, {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        return response.data;
+      }
+
+      // Handle pagination with cursor
+      let allData: any[] = [];
+      let cursor: string | null = null;
+      let hasMore = true;
+
+      while (hasMore) {
+        const url = new URL(`${this.baseUrl}${endpoint}`);
+        if (cursor) {
+          url.searchParams.set('cursor', cursor);
+        }
+
+        const response = await axios.get(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const responseData = response.data;
+        
+        // Handle different response structures
+        if (responseData.data && Array.isArray(responseData.data)) {
+          // Standard paginated response with data array
+          allData = allData.concat(responseData.data);
+          cursor = responseData.cursor || null;
+          hasMore = !!cursor;
+        } else if (Array.isArray(responseData)) {
+          // Direct array response
+          allData = allData.concat(responseData);
+          hasMore = false; // No pagination info, assume single page
+        } else {
+          // Single object or other structure
+          allData.push(responseData);
+          hasMore = false;
+        }
+      }
+
+      // Return the same structure as the original response but with all data
+      if (allData.length === 1 && !Array.isArray(allData[0])) {
+        return allData[0]; // Return single object
+      }
+      return { data: allData }; // Return array wrapped in data property
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Miro API error: ${error.response?.status} ${error.response?.statusText}`);
@@ -58,8 +104,8 @@ export class MiroClient {
       // Get board details
       const boardResponse = await this.makeRequest(`/boards/${boardId}`);
       
-      // Get board items
-      const itemsResponse = await this.makeRequest(`/boards/${boardId}/items`);
+      // Get board items with pagination
+      const itemsResponse = await this.makeRequest(`/boards/${boardId}/items`, true);
 
       return {
         id: boardResponse.id,
@@ -166,7 +212,7 @@ export class MiroClient {
 
   async getItemsByType(boardId: string, itemType: string): Promise<MiroItem[]> {
     try {
-      const response = await this.makeRequest(`/boards/${boardId}/items?type=${itemType}`);
+      const response = await this.makeRequest(`/boards/${boardId}/items?type=${itemType}`, true);
       return response.data || [];
     } catch (error) {
       throw new Error(`Failed to fetch items of type ${itemType}: ${(error as Error).message}`);
@@ -662,6 +708,11 @@ export class MiroClient {
       }
       throw error;
     }
+  }
+
+  // Helper method to make paginated requests for any endpoint
+  async makePaginatedRequest(endpoint: string): Promise<any> {
+    return this.makeRequest(endpoint, true);
   }
 }
 
