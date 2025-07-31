@@ -524,6 +524,32 @@ NESTED ITEM GUIDELINES:
             },
             required: ["boardId"]
           }
+        },
+        {
+          name: "calculate_children_coordinates",
+          description: "Calculate the absolute coordinates for a child widget relative to its parent frame. Useful for replacing content in frames.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              frameId: { type: "string", description: "The frame ID" },
+              childWidgetId: { type: "string", description: "The child widget ID to calculate coordinates for" }
+            },
+            required: ["boardId", "frameId", "childWidgetId"]
+          }
+        },
+        {
+          name: "get_frame_and_child_details",
+          description: "Get detailed information about a frame and its child widget, including calculated coordinates for positioning.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              frameId: { type: "string", description: "The frame ID" },
+              childWidgetId: { type: "string", description: "The child widget ID" }
+            },
+            required: ["boardId", "frameId", "childWidgetId"]
+          }
         }
       ]
     }));
@@ -579,6 +605,10 @@ NESTED ITEM GUIDELINES:
             return await this.deleteCard(request.params.arguments);
           case "get_sticky_notes":
             return await this.getStickyNotes(request.params.arguments);
+          case "calculate_children_coordinates":
+            return await this.calculateChildrenCoordinates(request.params.arguments);
+          case "get_frame_and_child_details":
+            return await this.getFrameAndChildDetails(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1208,6 +1238,69 @@ NESTED ITEM GUIDELINES:
       };
     } catch (error) {
       console.error(`Error getting sticky notes:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async calculateChildrenCoordinates(args: any) {
+    const { boardId, frameId, childWidgetId } = args;
+    if (!this.miroClient) {
+      const mockCoordinates = {
+        x: 100,
+        y: 200,
+        frameId,
+        childWidgetId,
+        boardId,
+        mock: true
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockCoordinates, null, 2) }]
+      };
+    }
+
+    try {
+      const coordinates = await this.miroClient.calculateChildrenCoordinates(boardId, frameId, childWidgetId);
+      return {
+        content: [{ type: "text", text: JSON.stringify(coordinates, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error calculating children coordinates:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getFrameAndChildDetails(args: any) {
+    const { boardId, frameId, childWidgetId } = args;
+    if (!this.miroClient) {
+      const mockDetails = {
+        frame: {
+          id: frameId,
+          title: "Mock Frame",
+          position: { x: 0, y: 0 },
+          geometry: { width: 400, height: 300 }
+        },
+        childWidget: {
+          id: childWidgetId,
+          type: "sticky_note",
+          position: { x: 50, y: 50 },
+          data: { content: "Mock content" }
+        },
+        calculatedPosition: { x: 100, y: 200 },
+        boardId,
+        mock: true
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockDetails, null, 2) }]
+      };
+    }
+
+    try {
+      const details = await this.miroClient.getFrameAndChildDetails(boardId, frameId, childWidgetId);
+      return {
+        content: [{ type: "text", text: JSON.stringify(details, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error getting frame and child details:`, error);
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
     }
   }

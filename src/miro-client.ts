@@ -714,6 +714,85 @@ export class MiroClient {
   async makePaginatedRequest(endpoint: string): Promise<any> {
     return this.makeRequest(endpoint, true);
   }
+
+  // Calculate coordinates for child widgets relative to their parent frame
+  async calculateChildrenCoordinates(boardId: string, frameId: string, childWidgetId: string): Promise<{ x: number, y: number }> {
+    try {
+      // Get the frame details
+      const frame = await this.getFrame(boardId, frameId);
+      
+      // Get the child widget details
+      let childWidget;
+      try {
+        // Try to get as different item types
+        childWidget = await this.getSticky(boardId, childWidgetId);
+      } catch {
+        try {
+          childWidget = await this.getTextItem(boardId, childWidgetId);
+        } catch {
+          try {
+            childWidget = await this.getCard(boardId, childWidgetId);
+          } catch {
+            throw new Error(`Could not find child widget with ID: ${childWidgetId}`);
+          }
+        }
+      }
+
+      // Extract position and geometry data
+      const frameX = frame.position?.x || 0;
+      const frameY = frame.position?.y || 0;
+      const frameWidth = frame.geometry?.width || 0;
+      const frameHeight = frame.geometry?.height || 0;
+      
+      const childX = childWidget.position?.x || 0;
+      const childY = childWidget.position?.y || 0;
+
+      // Calculate the absolute coordinates relative to the frame's center
+      const rectCenterX = frameX - frameWidth / 2 + childX;
+      const rectCenterY = frameY - frameHeight / 2 + childY;
+
+      return { x: rectCenterX, y: rectCenterY };
+    } catch (error) {
+      throw new Error(`Failed to calculate children coordinates: ${(error as Error).message}`);
+    }
+  }
+
+  // Get frame and child widget details for coordinate calculation
+  async getFrameAndChildDetails(boardId: string, frameId: string, childWidgetId: string): Promise<{
+    frame: any;
+    childWidget: any;
+    calculatedPosition: { x: number, y: number };
+  }> {
+    try {
+      const frame = await this.getFrame(boardId, frameId);
+      let childWidget;
+      
+      // Try to get child widget as different types
+      try {
+        childWidget = await this.getSticky(boardId, childWidgetId);
+      } catch {
+        try {
+          childWidget = await this.getTextItem(boardId, childWidgetId);
+        } catch {
+          try {
+            childWidget = await this.getCard(boardId, childWidgetId);
+          } catch {
+            throw new Error(`Could not find child widget with ID: ${childWidgetId}`);
+          }
+        }
+      }
+
+      const calculatedPosition = await this.calculateChildrenCoordinates(boardId, frameId, childWidgetId);
+      
+      return {
+        frame,
+        childWidget,
+        calculatedPosition
+      };
+    } catch (error) {
+      throw new Error(`Failed to get frame and child details: ${(error as Error).message}`);
+    }
+  }
 }
 
 // Enhanced template recommendation logic
