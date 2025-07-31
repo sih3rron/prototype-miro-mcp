@@ -550,6 +550,22 @@ NESTED ITEM GUIDELINES:
             },
             required: ["boardId", "frameId", "childWidgetId"]
           }
+        },
+        {
+          name: "get_items_by_type",
+          description: "Get all items of a specific type from a Miro board (e.g., sticky_notes, text, cards, frames).",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              itemType: { 
+                type: "string", 
+                description: "The type of items to retrieve (e.g., sticky_note, text, card, frame)",
+                enum: ["sticky_note", "text", "card", "frame", "shape", "image"]
+              }
+            },
+            required: ["boardId", "itemType"]
+          }
         }
       ]
     }));
@@ -609,6 +625,8 @@ NESTED ITEM GUIDELINES:
             return await this.calculateChildrenCoordinates(request.params.arguments);
           case "get_frame_and_child_details":
             return await this.getFrameAndChildDetails(request.params.arguments);
+          case "get_items_by_type":
+            return await this.getItemsByType(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1301,6 +1319,39 @@ NESTED ITEM GUIDELINES:
       };
     } catch (error) {
       console.error(`Error getting frame and child details:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getItemsByType(args: any) {
+    const { boardId, itemType } = args;
+    if (!this.miroClient) {
+      const mockItems = [
+        {
+          id: "mock-item-1",
+          type: itemType,
+          data: { content: `Mock ${itemType} content 1` },
+          position: { x: 0, y: 0 }
+        },
+        {
+          id: "mock-item-2", 
+          type: itemType,
+          data: { content: `Mock ${itemType} content 2` },
+          position: { x: 100, y: 100 }
+        }
+      ];
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockItems, null, 2) }]
+      };
+    }
+
+    try {
+      const items = await this.miroClient.getItemsByType(boardId, itemType);
+      return {
+        content: [{ type: "text", text: JSON.stringify(items, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error getting items by type ${itemType}:`, error);
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
     }
   }
