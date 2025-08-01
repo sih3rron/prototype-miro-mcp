@@ -173,14 +173,53 @@ NESTED ITEM GUIDELINES:
 - Set item geometry.width to fit within parent object confines
 - Adjust style.fontSize (in dp) as needed so content fits within available width
 
-MIRO BOARD CONTENT STYLE GUIDELINES:
-- Use the below style guidelines for unless explicitly stated otherwise.
-- Heading fonts should be bold and larger than the body text.
-- Body text should be regular font size.
-- Text boxes within a frame should be a minimum of 30% width of the parent frame.
-- All content within a frame needs to 50 dp from the inside edges of the frame.
-- Frames should be a minimum distance of 100 dp from the outside edge of each other.
-- where possible use red for negatives, green for positives, and blue for neutral.
+FRAME SPECIFICATIONS:
+- Minimum frame spacing: 100dp between frame edges
+- Content padding: 50dp minimum from all internal frame edges
+- Frame sizes: Use standardized dimensions (e.g., 1400x1000, 1200x800, 800x600)
+
+POSITIONING CALCULATIONS (for content within Frames, parent_top_left reference):
+All calculations below are using the example of a 1400x1000 frame.
+- For 1400x1000 frame: Content starts at x=50, y=50 (not x=700, y=500 center)
+- Text width = (Frame width - 100dp) for full-width content
+- Two-column layout = (Frame width - 150dp) / 2 per column
+- Column 1 x-position = 50 + (column_width/2)
+- Column 2 x-position = 50 + column_width + 50 + (column_width/2)
+
+FONT SIZING:
+- H1 (Main titles): fontSize: 20, fontWeight: bold
+- H2 (Section headers): fontSize: 16, fontWeight: bold  
+- Body text: fontSize: 12, fontWeight: regular
+- Small text: fontSize: 10, fontWeight: regular
+
+TEXT WIDTH REQUIREMENTS:
+- Minimum text width = 30% of parent frame width
+- Full-width text = (parent_width - 100dp)
+- Two-column text = (parent_width - 150dp) / 2
+
+SEMANTIC COLORS:
+- Negative/Threats/Weaknesses: color: "#dc2626" (red)
+- Positive/Opportunities/Strengths: color: "#16a34a" (green)  
+- Neutral/Information: color: "#2563eb" (blue)
+- Default text: color: "#1a1a1a" (dark gray)
+
+QUICK REFERENCE FOR COMMON FRAME SIZES:
+
+1400x1000 Frame:
+- Content padding: 50dp from edges
+- Two-column width: 600dp each
+- Left column center: x=350
+- Right column center: x=1050  
+- Full-width center: x=700
+- Title y-position: 80
+- Section start y-position: 200
+
+1200x800 Frame:
+- Content padding: 50dp from edges  
+- Two-column width: 500dp each
+- Left column center: x=300
+- Right column center: x=900
+- Full-width center: x=600
 
 RESPONSE RULES:
 - Always respond with URL where possible. An example would be when recommending a template, you would return the URL of the template.
@@ -579,6 +618,81 @@ RESPONSE RULES:
             },
             required: ["boardId", "itemType"]
           }
+        },
+        {
+          name: "create_frame_layout",
+          description: "Create a complete layout within a frame with title, columns, and full-width content using calculated positioning.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              frameId: { type: "string", description: "The frame ID to add content to" },
+              layout: {
+                type: "object",
+                description: "Layout specification with content sections",
+                properties: {
+                  title: { type: "string", description: "Optional title text" },
+                  leftColumn: { 
+                    type: "array", 
+                    description: "Array of text items for left column",
+                    items: { type: "string" }
+                  },
+                  rightColumn: { 
+                    type: "array", 
+                    description: "Array of text items for right column", 
+                    items: { type: "string" }
+                  },
+                  fullWidth: { 
+                    type: "array", 
+                    description: "Array of text items for full-width content",
+                    items: { type: "string" }
+                  }
+                }
+              }
+            },
+            required: ["boardId", "frameId", "layout"]
+          }
+        },
+        {
+          name: "create_styled_text",
+          description: "Create text with proper styling and positioning within a frame or parent element.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID" },
+              parentId: { type: "string", description: "The parent frame or element ID" },
+              content: { type: "string", description: "Text content to create" },
+              position: {
+                type: "object",
+                description: "Position coordinates",
+                properties: {
+                  x: { type: "number", description: "X coordinate" },
+                  y: { type: "number", description: "Y coordinate" }
+                },
+                required: ["x", "y"]
+              },
+              type: { 
+                type: "string", 
+                description: "Text style type",
+                enum: ["title", "header", "body", "positive", "negative", "neutral"],
+                default: "body"
+              },
+              frameWidth: { type: "number", description: "Optional frame width for width calculation" }
+            },
+            required: ["boardId", "parentId", "content", "position"]
+          }
+        },
+        {
+          name: "calculate_frame_positions",
+          description: "Calculate optimal positions for content within a frame based on frame dimensions.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              frameWidth: { type: "number", description: "Frame width in pixels" },
+              frameHeight: { type: "number", description: "Frame height in pixels" }
+            },
+            required: ["frameWidth", "frameHeight"]
+          }
         }
       ]
     }));
@@ -640,6 +754,12 @@ RESPONSE RULES:
             return await this.getFrameAndChildDetails(request.params.arguments);
           case "get_items_by_type":
             return await this.getItemsByType(request.params.arguments);
+          case "create_frame_layout":
+            return await this.createFrameLayout(request.params.arguments);
+          case "create_styled_text":
+            return await this.createStyledText(request.params.arguments);
+          case "calculate_frame_positions":
+            return await this.calculateFramePositions(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1365,6 +1485,96 @@ RESPONSE RULES:
       };
     } catch (error) {
       console.error(`Error getting items by type ${itemType}:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createFrameLayout(args: any) {
+    const { boardId, frameId, layout } = args;
+    if (!this.miroClient) {
+      const mockLayout = {
+        createdItems: [
+          { id: "mock-title", type: "text", data: { content: layout.title || "Mock Title" } },
+          { id: "mock-left-1", type: "text", data: { content: layout.leftColumn?.[0] || "Left item" } },
+          { id: "mock-right-1", type: "text", data: { content: layout.rightColumn?.[0] || "Right item" } }
+        ],
+        frameId,
+        boardId,
+        layout,
+        mock: true
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockLayout, null, 2) }]
+      };
+    }
+
+    try {
+      const createdItems = await this.miroClient.createFrameLayout(boardId, frameId, layout);
+      return {
+        content: [{ type: "text", text: JSON.stringify(createdItems, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error creating frame layout:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async createStyledText(args: any) {
+    const { boardId, parentId, content, position, type = 'body', frameWidth } = args;
+    if (!this.miroClient) {
+      const mockText = {
+        id: "mock-styled-text",
+        type: "text",
+        data: { content },
+        position,
+        style: { fontSize: type === 'title' ? 20 : 12, color: '#1a1a1a' },
+        parentId,
+        boardId,
+        textType: type,
+        frameWidth,
+        mock: true
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockText, null, 2) }]
+      };
+    }
+
+    try {
+      const createdText = await this.miroClient.createFrameText(boardId, parentId, content, position, type, frameWidth);
+      return {
+        content: [{ type: "text", text: JSON.stringify(createdText, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error creating styled text:`, error);
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async calculateFramePositions(args: any) {
+    const { frameWidth, frameHeight } = args;
+    if (!this.miroClient) {
+      const mockPositions = {
+        title: { x: frameWidth / 2, y: 80 },
+        leftColumn: { x: frameWidth / 4 + 50, y: 150 },
+        rightColumn: { x: 3 * frameWidth / 4 + 50, y: 150 },
+        fullWidth: { x: frameWidth / 2, y: 150 },
+        sectionStart: { x: frameWidth / 2, y: 250 },
+        frameWidth,
+        frameHeight,
+        mock: true
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockPositions, null, 2) }]
+      };
+    }
+
+    try {
+      const positions = this.miroClient.calculateFramePositions(frameWidth, frameHeight);
+      return {
+        content: [{ type: "text", text: JSON.stringify(positions, null, 2) }]
+      };
+    } catch (error) {
+      console.error(`Error calculating frame positions:`, error);
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
     }
   }

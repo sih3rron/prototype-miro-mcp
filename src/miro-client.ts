@@ -793,6 +793,173 @@ export class MiroClient {
       throw new Error(`Failed to get frame and child details: ${(error as Error).message}`);
     }
   }
+
+  // Calculate positions within frame based on frame dimensions
+  calculateFramePositions(frameWidth: number, frameHeight: number): {
+    title: { x: number, y: number };
+    leftColumn: { x: number, y: number };
+    rightColumn: { x: number, y: number };
+    fullWidth: { x: number, y: number };
+    sectionStart: { x: number, y: number };
+  } {
+    const padding = 50;
+    const usableWidth = frameWidth - (padding * 2);
+    const usableHeight = frameHeight - (padding * 2);
+    
+    return {
+      title: { x: frameWidth / 2, y: padding + 30 },
+      leftColumn: { x: padding + (usableWidth / 4), y: padding + 100 },
+      rightColumn: { x: padding + (3 * usableWidth / 4), y: padding + 100 },
+      fullWidth: { x: frameWidth / 2, y: padding + 100 },
+      sectionStart: { x: frameWidth / 2, y: padding + 200 }
+    };
+  }
+
+  // Get text styles based on type
+  getTextStyles(type: 'title' | 'header' | 'body' | 'positive' | 'negative' | 'neutral' = 'body'): {
+    fontSize: number;
+    textAlign: string;
+    color: string;
+    fontWeight?: string;
+  } {
+    const styles = {
+      title: { fontSize: 20, textAlign: 'center', color: '#1a1a1a', fontWeight: 'bold' },
+      header: { fontSize: 16, textAlign: 'left', color: '#1a1a1a', fontWeight: 'bold' },
+      body: { fontSize: 12, textAlign: 'left', color: '#1a1a1a' },
+      positive: { fontSize: 12, textAlign: 'left', color: '#16a34a' },
+      negative: { fontSize: 12, textAlign: 'left', color: '#dc2626' },
+      neutral: { fontSize: 12, textAlign: 'left', color: '#2563eb' }
+    };
+    
+    return styles[type];
+  }
+
+  // Calculate text width based on frame width and content type
+  calculateTextWidth(frameWidth: number, type: 'title' | 'fullWidth' | 'twoColumn' | 'body' = 'body'): number {
+    const padding = 50;
+    
+    switch (type) {
+      case 'title':
+        return frameWidth - 100;
+      case 'fullWidth':
+        return frameWidth - 100;
+      case 'twoColumn':
+        return (frameWidth - 150) / 2;
+      case 'body':
+      default:
+        return frameWidth / 2 - 75;
+    }
+  }
+
+  // Create text with proper positioning and styling
+  async createFrameText(
+    boardId: string, 
+    parentId: string, 
+    content: string, 
+    position: { x: number, y: number }, 
+    type: 'title' | 'header' | 'body' | 'positive' | 'negative' | 'neutral' = 'body',
+    frameWidth?: number
+  ): Promise<any> {
+    const style = this.getTextStyles(type);
+    const widthType = type === 'title' ? 'title' : 'body';
+    const width = frameWidth ? this.calculateTextWidth(frameWidth, widthType) : undefined;
+    
+    return this.createText(
+      boardId,
+      { content },
+      position,
+      width ? { width } : undefined,
+      style,
+      parentId
+    );
+  }
+
+  // Create a complete frame layout with calculated positions
+  async createFrameLayout(
+    boardId: string,
+    frameId: string,
+    layout: {
+      title?: string;
+      leftColumn?: string[];
+      rightColumn?: string[];
+      fullWidth?: string[];
+    }
+  ): Promise<any[]> {
+    try {
+      // Get frame details to calculate positions
+      const frame = await this.getFrame(boardId, frameId);
+      const frameWidth = frame.geometry?.width || 1400;
+      const frameHeight = frame.geometry?.height || 1000;
+      
+      const positions = this.calculateFramePositions(frameWidth, frameHeight);
+      const createdItems: any[] = [];
+
+      // Create title if provided
+      if (layout.title) {
+        const titleItem = await this.createFrameText(
+          boardId,
+          frameId,
+          layout.title,
+          positions.title,
+          'title',
+          frameWidth
+        );
+        createdItems.push(titleItem);
+      }
+
+      // Create left column items
+      if (layout.leftColumn) {
+        for (let i = 0; i < layout.leftColumn.length; i++) {
+          const yOffset = positions.leftColumn.y + (i * 80);
+          const item = await this.createFrameText(
+            boardId,
+            frameId,
+            layout.leftColumn[i],
+            { x: positions.leftColumn.x, y: yOffset },
+            'body',
+            frameWidth
+          );
+          createdItems.push(item);
+        }
+      }
+
+      // Create right column items
+      if (layout.rightColumn) {
+        for (let i = 0; i < layout.rightColumn.length; i++) {
+          const yOffset = positions.rightColumn.y + (i * 80);
+          const item = await this.createFrameText(
+            boardId,
+            frameId,
+            layout.rightColumn[i],
+            { x: positions.rightColumn.x, y: yOffset },
+            'body',
+            frameWidth
+          );
+          createdItems.push(item);
+        }
+      }
+
+      // Create full width items
+      if (layout.fullWidth) {
+        for (let i = 0; i < layout.fullWidth.length; i++) {
+          const yOffset = positions.fullWidth.y + (i * 80);
+          const item = await this.createFrameText(
+            boardId,
+            frameId,
+            layout.fullWidth[i],
+            { x: positions.fullWidth.x, y: yOffset },
+            'body',
+            frameWidth
+          );
+          createdItems.push(item);
+        }
+      }
+
+      return createdItems;
+    } catch (error) {
+      throw new Error(`Failed to create frame layout: ${(error as Error).message}`);
+    }
+  }
 }
 
 // Enhanced template recommendation logic
