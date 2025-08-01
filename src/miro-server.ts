@@ -159,10 +159,10 @@ class MiroTemplateRecommenderServer {
 
   constructor() {
     this.server = new Server({
-      name: "miro-template-recommender",
+      name: "miro-prototype-mcp",
       version: "0.3.1",
       capabilities: { tools: {} },
-      description: `Miro Template Recommender with integrated Miro board management.
+      description: `Miro Prototype MCP with integrated Miro board management.
 
 POSITIONING RULES:
 - When nesting items inside a frame, always calculate the position from the top-left corner of the parent.
@@ -171,7 +171,20 @@ POSITIONING RULES:
 
 NESTED ITEM GUIDELINES:
 - Set item geometry.width to fit within parent object confines
-- Adjust style.fontSize (in dp) as needed so content fits within available width`,
+- Adjust style.fontSize (in dp) as needed so content fits within available width
+
+MIRO BOARD CONTENT STYLE GUIDELINES:
+- Use the below style guidelines for unless explicitly stated otherwise.
+- Heading fonts should be bold and larger than the body text.
+- Body text should be regular font size.
+- Text boxes within a frame should be a minimum of 30% width of the parent frame.
+- All content within a frame needs to 50 dp from the inside edges of the frame.
+- Frames should be a minimum distance of 100 dp from the outside edge of each other.
+- where possible use red for negatives, green for positives, and blue for neutral.
+
+RESPONSE RULES:
+- Always respond with URL where possible. An example would be when recommending a template, you would return the URL of the template.
+- Always respond with the reasoning for your actions, recommendations, and decisions.`,
     });
     this.setupToolHandlers();
     this.server.onerror = (error) => console.error("[MCP Error]", error);
