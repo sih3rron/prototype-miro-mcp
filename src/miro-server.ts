@@ -690,32 +690,68 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
     });
   }
 
-  private async getBoardContent(args: any) {
-    const { boardId } = args;
-
-    if (!this.miroClient) {
-      return {
-        content: [{ type: "text", text: '["Sprint planning","User stories","Retrospective items"]' }]
-      };
-    }
-
-    try {
-      console.error(`[getBoardContent] Getting content for board: ${boardId}`);
-      const content = await this.miroClient.getBoardContent(boardId);
-      console.error(`[getBoardContent] Retrieved ${content.length} items`);
-
-      // Return simple array instead of verbose object
-      return {
-        content: [{ type: "text", text: JSON.stringify(content) }]
-      };
-    } catch (error) {
-      console.error(`[getBoardContent] Error:`, error);
-      return {
-        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
-        isError: true
-      };
-    }
+  /**
+ * Creates optimized error responses with concise, actionable messages
+ */
+private createErrorResponse(operation: string, error: Error, context?: string): any {
+  // Extract the core error without verbose details
+  let message = error.message;
+  
+  // Common error pattern simplifications
+  if (message.includes('Miro API error:')) {
+    message = message.replace('Miro API error: ', '');
   }
+  
+  if (message.includes('Failed to')) {
+    message = message.replace('Failed to ', '');
+  }
+  
+  // Handle specific error types with user-friendly messages
+  if (message.includes('404') || message.includes('not found')) {
+    message = `${operation}: Item not found`;
+  } else if (message.includes('401') || message.includes('403')) {
+    message = `${operation}: Access denied`;
+  } else if (message.includes('429')) {
+    message = `${operation}: Rate limited, retry later`;
+  } else if (message.includes('timeout')) {
+    message = `${operation}: Request timeout`;
+  } else if (message.length > 100) {
+    // Truncate very long error messages
+    message = message.substring(0, 97) + '...';
+  }
+  
+  // Add context if provided
+  const finalMessage = context ? `${message} (${context})` : message;
+  
+  console.error(`[${operation}] Error: ${error.message}`); // Still log full error for debugging
+  
+  return {
+    content: [{ type: "text", text: finalMessage }],
+    isError: true
+  };
+}
+
+private async getBoardContent(args: any) {
+  const { boardId } = args;
+  
+  if (!this.miroClient) {
+    return {
+      content: [{ type: "text", text: '["Sprint planning","User stories","Retrospective items"]' }]
+    };
+  }
+
+  try {
+    console.error(`[getBoardContent] Getting content for board: ${boardId}`);
+    const content = await this.miroClient.getBoardContent(boardId);
+    console.error(`[getBoardContent] Retrieved ${content.length} items`);
+    
+    return {
+      content: [{ type: "text", text: JSON.stringify(content) }]
+    };
+  } catch (error) {
+    return this.createErrorResponse('Board content extraction', error as Error, boardId);
+  }
+}
 
   private cleanHtmlContent(htmlContent: string): string {
     if (!htmlContent) return '';
@@ -751,8 +787,8 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
         content: [{ type: "text", text: JSON.stringify(boardInfo.items, null, 2) }]
       };
     } catch (error) {
-      console.error(`Error getting all items:`, error);
-      throw error;
+
+      return this.createErrorResponse('All items', error as Error, boardId);
     }
   }
 
@@ -1028,11 +1064,7 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
         content: [{ type: "text", text: JSON.stringify(streamlined) }]
       };
     } catch (error) {
-      console.error(`[getEfficientBoardAnalysis] Error:`, error);
-      return {
-        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
-        isError: true
-      };
+      return this.createErrorResponse('Board analysis', error as Error, boardId);
     }
   }
 
@@ -1080,11 +1112,7 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
         content: [{ type: "text", text: JSON.stringify(response) }]
       };
     } catch (error) {
-      console.error(`[getTemplateRecommendations] Error:`, error);
-      return {
-        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
-        isError: true
-      };
+      return this.createErrorResponse('Template recommendations', error as Error, boardId);
     }
   }
 
