@@ -237,6 +237,32 @@ RESPONSE RULES:
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
+          name: "get_smart_board_analysis",
+          description: "Get comprehensive board analysis with content summarization and template recommendations in one efficient call",
+          inputSchema: {
+            type: "object",
+            properties: {
+              boardId: { type: "string", description: "The Miro board ID to analyze" },
+              maxContent: { 
+                type: "number", 
+                description: "Maximum content items to return (default: 15)",
+                default: 15 
+              },
+              includeTemplates: { 
+                type: "boolean", 
+                description: "Include template recommendations (default: true)",
+                default: true 
+              },
+              maxTemplates: { 
+                type: "number", 
+                description: "Maximum template recommendations (default: 5)",
+                default: 5 
+              }
+            },
+            required: ["boardId"]
+          }
+        },
+        {
           name: "get_board_content",
           description: "Get all text content from a Miro board as an array of strings",
           inputSchema: {
@@ -270,16 +296,28 @@ RESPONSE RULES:
           }
         },
         {
-          name: "recommend_templates",
-          description: "Recommend Miro templates based on content analysis (supports both Miro board and meeting notes)",
+          name: "get_template_recommendations",
+          description: "Analyze existing Miro board content to recommend additional templates (uses efficient content summarization)",
           inputSchema: {
             type: "object",
             properties: {
               boardId: { type: "string", description: "The Miro board ID to analyze" },
-              meetingNotes: { type: "string", description: "Meeting notes text to analyze" },
-              maxRecommendations: { type: "number", description: "Maximum number of template recommendations (default: 5)", default: 5 }
+              maxRecommendations: { type: "number", description: "Maximum template recommendations (default: 5)", default: 5 },
+              maxContent: { type: "number", description: "Maximum content items to analyze (default: 20)", default: 20 }
             },
-            anyOf: [{ required: ["boardId"] }, { required: ["meetingNotes"] }]
+            required: ["boardId"]
+          }
+        },
+        {
+          name: "recommend_templates",
+          description: "Analyze meeting notes or external text content to recommend Miro templates for creating new boards",
+          inputSchema: {
+            type: "object",
+            properties: {
+              meetingNotes: { type: "string", description: "Meeting notes or external text to analyze" },
+              maxRecommendations: { type: "number", description: "Maximum template recommendations (default: 5)", default: 5 }
+            },
+            required: ["meetingNotes"]
           }
         },
         {
@@ -700,6 +738,8 @@ RESPONSE RULES:
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         switch (request.params.name) {
+          case "get_smart_board_analysis":
+          return await this.getSmartBoardAnalysis(request.params.arguments);
           case "get_board_content":
             return await this.getBoardContent(request.params.arguments);
           case "get_all_items":
@@ -987,23 +1027,24 @@ RESPONSE RULES:
   private parseMeetingNotes(meetingNotes: string): string[] {
     const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
     const content: string[] = [];
-
+  
     lines.forEach(line => {
-      const trimmedLine = line.trim();
-      if (trimmedLine.length < 3) return;
-
-      const cleanedLine = trimmedLine
+      const trimmed = line.trim();
+      if (trimmed.length < 3) return; // Skip very short lines
+  
+      const cleanedLine = trimmed
         .replace(/^[-*•]\s*/, '')
         .replace(/^\d+\.\s*/, '')
         .replace(/^#{1,6}\s*/, '')
         .trim();
-
-      if (cleanedLine.length > 0) {
+  
+      if (cleanedLine.length > 0 && cleanedLine.length < 200) { // Skip overly long lines too
         content.push(cleanedLine);
       }
     });
-
-    return content;
+  
+    // Limit meeting notes analysis to prevent token overload
+    return content.slice(0, 25);
   }
 
   private analyzeContent(content: string[]): {
@@ -1092,6 +1133,64 @@ RESPONSE RULES:
     const categoryKeywords: readonly string[] = TEMPLATE_CATEGORIES[category]?.keywords ?? [];
     const matches = keywords.filter((k) => categoryKeywords.includes(k)).length;
     return matches / categoryKeywords.length;
+  }
+
+  private async getSmartBoardAnalysis(args: any) {
+    const { boardId, maxContent = 15, includeTemplates = true, maxTemplates = 5 } = args;
+  
+    if (!this.miroClient) {
+      // Mock response for testing without API
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            boardInfo: {
+              id: boardId,
+              name: "Mock Board",
+              itemCount: 25,
+              itemTypes: ["sticky_note", "text", "frame"]
+            },
+            contentSummary: {
+              keyContent: ["Sprint planning", "User stories", "Retrospective items"],
+              contentStats: { total: 25, summarized: 3, skipped: 22 }
+            },
+            analysis: {
+              detectedKeywords: ["sprint", "user", "retrospective"],
+              identifiedCategories: ["agile"],
+              context: "Content appears to focus on: agile"
+            },
+            templateRecommendations: [
+              { name: "Sprint Planning", url: "https://miro.com/templates/sprint-planning/", category: "agile", relevanceScore: 85 }
+            ]
+          }, null, 2)
+        }]
+      };
+    }
+  
+    try {
+      console.error(`[getSmartBoardAnalysis] Starting analysis for board: ${boardId}`);
+      
+      const result = await this.miroClient.getSmartBoardAnalysis(boardId, {
+        maxContent,
+        includeTemplateRecommendations: includeTemplates,
+        maxTemplateRecommendations: maxTemplates
+      });
+  
+      console.error(`[getSmartBoardAnalysis] Analysis complete. Content: ${result.contentSummary.keyContent.length} items, Keywords: ${result.analysis.detectedKeywords.length}, Templates: ${result.templateRecommendations?.length || 0}`);
+  
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }]
+      };
+    } catch (error) {
+      console.error(`[getSmartBoardAnalysis] Error:`, error);
+      return {
+        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+        isError: true
+      };
+    }
   }
 
   async run() {

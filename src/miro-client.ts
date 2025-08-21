@@ -68,7 +68,7 @@ export class MiroClient {
         });
 
         const responseData = response.data;
-        
+
         // Handle different response structures
         if (responseData.data && Array.isArray(responseData.data)) {
           // Standard paginated response with data array
@@ -103,7 +103,7 @@ export class MiroClient {
     try {
       // Get board details
       const boardResponse = await this.makeRequest(`/boards/${boardId}`);
-      
+
       // Get board items with pagination
       const itemsResponse = await this.makeRequest(`/boards/${boardId}/items`, true);
 
@@ -122,7 +122,7 @@ export class MiroClient {
     try {
       const boardInfo = await this.getBoardInfo(boardId);
       const rawContent: string[] = [];
-  
+
       // Extract text content from various item types
       for (const item of boardInfo.items) {
         const textContent = this.extractTextFromItem(item);
@@ -130,7 +130,7 @@ export class MiroClient {
           rawContent.push(textContent);
         }
       }
-  
+
       // Add board name and description
       if (boardInfo.name) {
         rawContent.unshift(boardInfo.name);
@@ -138,18 +138,234 @@ export class MiroClient {
       if (boardInfo.description) {
         rawContent.push(boardInfo.description);
       }
-  
+
       console.error(`[getBoardContent] Raw content extracted: ${rawContent.length} items`);
-  
+
       // Apply summarization to reduce token usage
       const { summary } = this.summarizeContent(rawContent, 15); // Limit to 15 most relevant items
-      
+
       console.error(`[getBoardContent] Summarized to: ${summary.length} items`);
-  
+
       return summary;
     } catch (error) {
       throw new Error(`Failed to extract board content: ${(error as Error).message}`);
     }
+  }
+
+  /**
+ * Comprehensive board analysis with built-in content summarization and template recommendations
+ * This reduces token usage and API round trips by bundling common operations
+ */
+  async getSmartBoardAnalysis(boardId: string, options: {
+    maxContent?: number;
+    includeTemplateRecommendations?: boolean;
+    maxTemplateRecommendations?: number;
+  } = {}): Promise<{
+    boardInfo: {
+      id: string;
+      name: string;
+      itemCount: number;
+      itemTypes: string[];
+    };
+    contentSummary: {
+      keyContent: string[];
+      contentStats: {
+        total: number;
+        summarized: number;
+        skipped: number;
+      };
+    };
+    analysis: {
+      detectedKeywords: string[];
+      identifiedCategories: string[];
+      context: string;
+    };
+    templateRecommendations?: Array<{
+      name: string;
+      url: string;
+      category: string;
+      relevanceScore: number;
+    }>;
+  }> {
+    const {
+      maxContent = 15,
+      includeTemplateRecommendations = true,
+      maxTemplateRecommendations = 5
+    } = options;
+
+    try {
+      // Get board info and extract content in one go
+      const boardInfo = await this.getBoardInfo(boardId);
+      const rawContent: string[] = [];
+
+      // Extract and process content
+      for (const item of boardInfo.items) {
+        const textContent = this.extractTextFromItem(item);
+        if (textContent) {
+          rawContent.push(textContent);
+        }
+      }
+
+      // Add board metadata
+      if (boardInfo.name) rawContent.unshift(boardInfo.name);
+      if (boardInfo.description) rawContent.push(boardInfo.description);
+
+      console.error(`[getSmartBoardAnalysis] Processing ${rawContent.length} items for board ${boardId}`);
+
+      // Summarize content efficiently
+      const { summary, contentStats } = this.summarizeContent(rawContent, maxContent);
+
+      // Analyze summarized content for keywords and patterns
+      const analysis = this.analyzeContentForTemplates(summary);
+
+      // Prepare basic response
+      const response: any = {  // Add ': any' here to fix the conditional property issue
+        boardInfo: {
+          id: boardInfo.id,
+          name: boardInfo.name,
+          itemCount: boardInfo.items.length,
+          itemTypes: [...new Set(boardInfo.items.map(item => item.type))]
+        },
+        contentSummary: {
+          keyContent: summary,
+          contentStats
+        },
+        analysis
+      };
+
+      // Add template recommendations if requested
+      if (includeTemplateRecommendations) {
+        response.templateRecommendations = this.generateTemplateRecommendations(analysis, maxTemplateRecommendations);
+      }
+
+      console.error(`[getSmartBoardAnalysis] Completed analysis: ${summary.length} content items, ${analysis.detectedKeywords.length} keywords`);
+
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to perform smart board analysis: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Analyzes content for template matching keywords and categories
+   */
+  private analyzeContentForTemplates(content: string[]): {
+    detectedKeywords: string[];
+    identifiedCategories: string[];
+    context: string;
+  } {
+    const allText = content.join(" ").toLowerCase();
+    const foundKeywords: string[] = [];
+    const categoryScores: { [key: string]: number } = {};
+
+    // Template categories (simplified version for efficiency)
+    const templateCategories = {
+      "workshops": ["workshop", "facilitation", "meeting", "collaboration", "team building", "icebreaker", "session"],
+      "brainstorming": ["ideas", "creativity", "innovation", "brainstorm", "ideation", "concepts", "mind map"],
+      "research": ["research", "user research", "customer insights", "user experience", "ux", "persona"],
+      "strategic_planning": ["strategy", "planning", "roadmap", "business model", "goals", "objectives", "vision"],
+      "agile": ["sprint", "scrum", "agile", "retrospective", "standup", "backlog", "user stories", "kanban"],
+      "mapping": ["mapping", "diagram", "flowchart", "process", "workflow", "swimlane", "stakeholder"]
+    };
+
+    // Find matching keywords and score categories
+    for (const [category, keywords] of Object.entries(templateCategories)) {
+      const matchingKeywords = keywords.filter(keyword => allText.includes(keyword));
+      if (matchingKeywords.length > 0) {
+        foundKeywords.push(...matchingKeywords);
+        categoryScores[category] = matchingKeywords.length;
+      }
+    }
+
+    // Sort categories by relevance
+    const sortedCategories = Object.entries(categoryScores)
+      .sort(([, a], [, b]) => b - a)
+      .map(([category]) => category);
+
+    // Generate context description
+    const context = sortedCategories.length > 0
+      ? `Content appears to focus on: ${sortedCategories.slice(0, 3).join(", ")}`
+      : "General collaborative work";
+
+    return {
+      detectedKeywords: [...new Set(foundKeywords)],
+      identifiedCategories: sortedCategories,
+      context
+    };
+  }
+
+  private generateTemplateRecommendations(
+    analysis: { detectedKeywords: string[]; identifiedCategories: string[] },
+    maxRecommendations: number
+  ): Array<{ name: string; url: string; category: string; relevanceScore: number }> {
+
+    // Simplified template database for efficiency - with proper typing
+    const templates: Record<string, Array<{ name: string; url: string }>> = {
+      "workshops": [
+        { name: "Workshop Agenda", url: "https://miro.com/templates/meeting-agenda/" },
+        { name: "Icebreaker Activities", url: "https://miro.com/templates/workshop-icebreaker-activities/" },
+        { name: "Team Charter", url: "https://miro.com/templates/team-charter/" }
+      ],
+      "brainstorming": [
+        { name: "Mind Map", url: "https://miro.com/templates/mind-map/" },
+        { name: "Affinity Diagram", url: "https://miro.com/templates/affinity-diagram/" },
+        { name: "SCAMPER", url: "https://miro.com/templates/scamper/" }
+      ],
+      "research": [
+        { name: "Customer Journey Map", url: "https://miro.com/templates/customer-journey-map/" },
+        { name: "User Persona", url: "https://miro.com/templates/personas/" },
+        { name: "Empathy Map", url: "https://miro.com/templates/empathy-map/" }
+      ],
+      "strategic_planning": [
+        { name: "Business Model Canvas", url: "https://miro.com/templates/business-model-canvas/" },
+        { name: "SWOT Analysis", url: "https://miro.com/templates/swot-analysis/" },
+        { name: "OKR Planning", url: "https://miro.com/templates/okr-planning/" }
+      ],
+      "agile": [
+        { name: "Sprint Planning", url: "https://miro.com/templates/sprint-planning/" },
+        { name: "Retrospective", url: "https://miro.com/templates/retrospective/" },
+        { name: "Kanban Framework", url: "https://miro.com/templates/kanban-framework/" }
+      ],
+      "mapping": [
+        { name: "Flowchart", url: "https://miro.com/templates/flowchart/" },
+        { name: "Process Map", url: "https://miro.com/templates/process-map/" },
+        { name: "Stakeholder Mapping", url: "https://miro.com/templates/stakeholder-map-basic/" }
+      ]
+    };
+
+    const recommendations: Array<{ name: string; url: string; category: string; relevanceScore: number }> = [];
+
+    // Generate recommendations based on identified categories
+    for (const category of analysis.identifiedCategories.slice(0, 3)) { // Top 3 categories only
+      const categoryTemplates = templates[category] || [];
+      for (const template of categoryTemplates.slice(0, 2)) { // Top 2 templates per category
+        recommendations.push({
+          name: template.name,
+          url: template.url,
+          category,
+          relevanceScore: this.calculateTemplateRelevance(analysis.detectedKeywords, category)
+        });
+      }
+    }
+
+    return recommendations
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, maxRecommendations);
+  }
+
+  private calculateTemplateRelevance(keywords: string[], category: string): number {
+    const categoryKeywords: Record<string, string[]> = {
+      "workshops": ["workshop", "facilitation", "meeting", "collaboration"],
+      "brainstorming": ["ideas", "creativity", "innovation", "brainstorm"],
+      "research": ["research", "user", "customer", "ux"],
+      "strategic_planning": ["strategy", "planning", "business", "goals"],
+      "agile": ["sprint", "scrum", "agile", "retrospective"],
+      "mapping": ["mapping", "diagram", "process", "workflow"]
+    };
+
+    const relevantKeywords = categoryKeywords[category] || [];
+    const matches = keywords.filter(k => relevantKeywords.includes(k)).length;
+    return Math.min((matches / relevantKeywords.length) * 100, 100);
   }
 
   private extractTextFromItem(item: MiroItem): string | null {
@@ -167,29 +383,29 @@ export class MiroClient {
           return this.cleanHtmlContent(item.data.content);
         }
         return item.data?.text || null;
-        
+
       case 'shape':
         // Shapes might have content in data.content
         if (item.data?.content) {
           return this.cleanHtmlContent(item.data.content);
         }
         return null;
-        
+
       case 'card':
         // Cards typically have title and content
         const cardTitle = item.data?.title || '';
         const cardContent = item.data?.content ? this.cleanHtmlContent(item.data.content) : '';
         return [cardTitle, cardContent].filter(Boolean).join(' - ') || null;
-        
+
       case 'frame':
         // Frames have titles
         return item.data?.title || null;
-        
+
       case 'image':
       case 'unknown':
         // Skip images and unknown types for text content
         return null;
-        
+
       default:
         // Try to extract any available text content
         const availableContent = [
@@ -197,14 +413,14 @@ export class MiroClient {
           item.data?.content ? this.cleanHtmlContent(item.data.content) : null,
           item.data?.text
         ].filter(Boolean);
-        
+
         return availableContent.length > 0 ? availableContent.join(' ') : null;
     }
   }
 
   private cleanHtmlContent(htmlContent: string): string {
     if (!htmlContent) return '';
-    
+
     // Remove HTML tags and decode common entities
     return htmlContent
       .replace(/<[^>]*>/g, '') // Remove HTML tags
@@ -218,169 +434,169 @@ export class MiroClient {
   }
 
 
-/**
- * Summarizes board content to reduce token usage while maintaining relevance
- * @param content Array of all extracted content
- * @param maxItems Maximum number of items to return (default: 20)
- */
+  /**
+   * Summarizes board content to reduce token usage while maintaining relevance
+   * @param content Array of all extracted content
+   * @param maxItems Maximum number of items to return (default: 20)
+   */
 
-private summarizeContent(content: string[], maxItems: number = 20): {
-  summary: string[];
-  contentStats: { total: number; summarized: number; skipped: number };
-} {
-  console.error(`[summarizeContent] Processing ${content.length} items`);
-  
-  // Step 1: Filter out noise and very short/long content
-  const meaningfulContent = content.filter(item => {
-    if (!item || typeof item !== 'string') return false;
-    const trimmed = item.trim();
-    
-    // Skip very short items (likely noise)
-    if (trimmed.length < 3) return false;
-    
-    // Skip very long items (likely to consume many tokens)
-    if (trimmed.length > 300) return false;
-    
-    // Skip URLs and obvious noise
-    if (/^https?:\/\//.test(trimmed)) return false;
-    if (/^[^\w\s]*$/.test(trimmed)) return false; // Only punctuation
-    if (/^(.)\1{3,}$/.test(trimmed)) return false; // Repeated characters
-    
-    return true;
-  });
+  private summarizeContent(content: string[], maxItems: number = 20): {
+    summary: string[];
+    contentStats: { total: number; summarized: number; skipped: number };
+  } {
+    console.error(`[summarizeContent] Processing ${content.length} items`);
 
-  console.error(`[summarizeContent] After filtering: ${meaningfulContent.length} items`);
+    // Step 1: Filter out noise and very short/long content
+    const meaningfulContent = content.filter(item => {
+      if (!item || typeof item !== 'string') return false;
+      const trimmed = item.trim();
 
-  // Step 2: Remove near-duplicates
-  const uniqueContent = this.removeSimilarContent(meaningfulContent);
-  console.error(`[summarizeContent] After deduplication: ${uniqueContent.length} items`);
+      // Skip very short items (likely noise)
+      if (trimmed.length < 3) return false;
 
-  // Step 3: Prioritize by relevance
-  const prioritized = this.prioritizeContent(uniqueContent);
+      // Skip very long items (likely to consume many tokens)
+      if (trimmed.length > 300) return false;
 
-  // Step 4: Take only the top items
-  const summary = prioritized.slice(0, maxItems);
+      // Skip URLs and obvious noise
+      if (/^https?:\/\//.test(trimmed)) return false;
+      if (/^[^\w\s]*$/.test(trimmed)) return false; // Only punctuation
+      if (/^(.)\1{3,}$/.test(trimmed)) return false; // Repeated characters
 
-  return {
-    summary,
-    contentStats: {
-      total: content.length,
-      summarized: summary.length,
-      skipped: content.length - summary.length
-    }
-  };
-}
-
-/**
- * Removes content items that are very similar to avoid redundancy
- */
-private removeSimilarContent(content: string[]): string[] {
-  const unique: string[] = [];
-  
-  for (const item of content) {
-    const normalized = item.toLowerCase().trim();
-    
-    // Check if this item is too similar to anything we already have
-    const isDuplicate = unique.some(existing => {
-      const existingNormalized = existing.toLowerCase().trim();
-      
-      // Exact match
-      if (normalized === existingNormalized) return true;
-      
-      // Very high similarity (80%+)
-      const similarity = this.calculateSimilarity(existingNormalized, normalized);
-      return similarity > 0.8;
+      return true;
     });
 
-    if (!isDuplicate) {
-      unique.push(item);
-    }
-  }
-  
-  return unique;
-}
+    console.error(`[summarizeContent] After filtering: ${meaningfulContent.length} items`);
 
-/**
- * Scores content by relevance - higher scores = more likely to be meaningful
- */
-private prioritizeContent(content: string[]): string[] {
-  return content
-    .map(item => ({
-      content: item,
-      score: this.getContentRelevanceScore(item)
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map(item => item.content);
-}
+    // Step 2: Remove near-duplicates
+    const uniqueContent = this.removeSimilarContent(meaningfulContent);
+    console.error(`[summarizeContent] After deduplication: ${uniqueContent.length} items`);
 
-/**
- * Calculates how "relevant" a piece of content is likely to be
- */
-private getContentRelevanceScore(content: string): number {
-  let score = 0;
-  const words = content.split(/\s+/);
-  const length = content.length;
-  
-  // Length scoring - sweet spot is 10-100 characters
-  if (length >= 10 && length <= 100) score += 3;
-  else if (length > 100 && length <= 200) score += 1;
-  
-  // Multiple words are generally more meaningful than single words
-  if (words.length > 1) score += 2;
-  if (words.length >= 4) score += 1;
-  
-  // Business/project terminology boost
-  const businessTerms = [
-    'project', 'task', 'goal', 'team', 'strategy', 'plan', 'idea', 'issue', 
-    'solution', 'user', 'customer', 'feature', 'requirement', 'sprint', 
-    'meeting', 'action', 'decision', 'risk', 'opportunity'
-  ];
-  
-  const lowerContent = content.toLowerCase();
-  const matchingTerms = businessTerms.filter(term => lowerContent.includes(term));
-  score += matchingTerms.length * 2;
-  
-  // Question format often indicates important content
-  if (content.includes('?')) score += 1;
-  
-  // Avoid obvious noise patterns
-  if (/^(untitled|new|item|text|note|card)\s*\d*$/i.test(content)) score -= 5;
-  if (/^\d+$/.test(content)) score -= 3; // Just numbers
-  
-  return score;
-}
+    // Step 3: Prioritize by relevance
+    const prioritized = this.prioritizeContent(uniqueContent);
 
-/**
- * Calculates similarity between two strings using Levenshtein distance
- * Returns a value between 0 (completely different) and 1 (identical)
- */
+    // Step 4: Take only the top items
+    const summary = prioritized.slice(0, maxItems);
 
-private calculateSimilarity(a: string, b: string): number {
-  if (a === b) return 1;
-  if (a.length === 0 || b.length === 0) return 0;
-  
-  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-
-  // Initialize first row and column
-  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-
-  // Fill the matrix
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,         // deletion
-        matrix[i][j - 1] + 1,         // insertion
-        matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1) // substitution
-      );
-    }
+    return {
+      summary,
+      contentStats: {
+        total: content.length,
+        summarized: summary.length,
+        skipped: content.length - summary.length
+      }
+    };
   }
 
-  // Convert distance to similarity score
-  const distance = matrix[a.length][b.length];
-  const maxLength = Math.max(a.length, b.length);
-  return maxLength === 0 ? 1 : 1 - distance / maxLength;
-}
+  /**
+   * Removes content items that are very similar to avoid redundancy
+   */
+  private removeSimilarContent(content: string[]): string[] {
+    const unique: string[] = [];
+
+    for (const item of content) {
+      const normalized = item.toLowerCase().trim();
+
+      // Check if this item is too similar to anything we already have
+      const isDuplicate = unique.some(existing => {
+        const existingNormalized = existing.toLowerCase().trim();
+
+        // Exact match
+        if (normalized === existingNormalized) return true;
+
+        // Very high similarity (80%+)
+        const similarity = this.calculateSimilarity(existingNormalized, normalized);
+        return similarity > 0.8;
+      });
+
+      if (!isDuplicate) {
+        unique.push(item);
+      }
+    }
+
+    return unique;
+  }
+
+  /**
+   * Scores content by relevance - higher scores = more likely to be meaningful
+   */
+  private prioritizeContent(content: string[]): string[] {
+    return content
+      .map(item => ({
+        content: item,
+        score: this.getContentRelevanceScore(item)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.content);
+  }
+
+  /**
+   * Calculates how "relevant" a piece of content is likely to be
+   */
+  private getContentRelevanceScore(content: string): number {
+    let score = 0;
+    const words = content.split(/\s+/);
+    const length = content.length;
+
+    // Length scoring - sweet spot is 10-100 characters
+    if (length >= 10 && length <= 100) score += 3;
+    else if (length > 100 && length <= 200) score += 1;
+
+    // Multiple words are generally more meaningful than single words
+    if (words.length > 1) score += 2;
+    if (words.length >= 4) score += 1;
+
+    // Business/project terminology boost
+    const businessTerms = [
+      'project', 'task', 'goal', 'team', 'strategy', 'plan', 'idea', 'issue',
+      'solution', 'user', 'customer', 'feature', 'requirement', 'sprint',
+      'meeting', 'action', 'decision', 'risk', 'opportunity'
+    ];
+
+    const lowerContent = content.toLowerCase();
+    const matchingTerms = businessTerms.filter(term => lowerContent.includes(term));
+    score += matchingTerms.length * 2;
+
+    // Question format often indicates important content
+    if (content.includes('?')) score += 1;
+
+    // Avoid obvious noise patterns
+    if (/^(untitled|new|item|text|note|card)\s*\d*$/i.test(content)) score -= 5;
+    if (/^\d+$/.test(content)) score -= 3; // Just numbers
+
+    return score;
+  }
+
+  /**
+   * Calculates similarity between two strings using Levenshtein distance
+   * Returns a value between 0 (completely different) and 1 (identical)
+   */
+
+  private calculateSimilarity(a: string, b: string): number {
+    if (a === b) return 1;
+    if (a.length === 0 || b.length === 0) return 0;
+
+    const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+    // Initialize first row and column
+    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+    // Fill the matrix
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,         // deletion
+          matrix[i][j - 1] + 1,         // insertion
+          matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1) // substitution
+        );
+      }
+    }
+
+    // Convert distance to similarity score
+    const distance = matrix[a.length][b.length];
+    const maxLength = Math.max(a.length, b.length);
+    return maxLength === 0 ? 1 : 1 - distance / maxLength;
+  }
 
   async getItemsByType(boardId: string, itemType: string): Promise<MiroItem[]> {
     try {
@@ -663,7 +879,7 @@ private calculateSimilarity(a: string, b: string): number {
   }
 
   // Create a new sticky note
-  async createSticky(boardId: string, data: any, position: { x: number, y: number, }, geometry?: { width: number, height: number}, style?: any, parentId?: string): Promise<any> {
+  async createSticky(boardId: string, data: any, position: { x: number, y: number, }, geometry?: { width: number, height: number }, style?: any, parentId?: string): Promise<any> {
     try {
       const payload: any = {
         data,
@@ -713,7 +929,7 @@ private calculateSimilarity(a: string, b: string): number {
   }
 
   // Update a specific sticky note
-  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number, height: number}, parentId?: string): Promise<any> {
+  async updateSticky(boardId: string, itemId: string, data?: any, style?: any, geometry?: { width: number, height: number }, parentId?: string): Promise<any> {
     try {
       const payload: any = {};
       if (data) payload.data = data;
@@ -892,7 +1108,7 @@ private calculateSimilarity(a: string, b: string): number {
     try {
       // Get the frame details
       const frame = await this.getFrame(boardId, frameId);
-      
+
       // Get the child widget details
       let childWidget;
       try {
@@ -915,7 +1131,7 @@ private calculateSimilarity(a: string, b: string): number {
       const frameY = frame.position?.y || 0;
       const frameWidth = frame.geometry?.width || 0;
       const frameHeight = frame.geometry?.height || 0;
-      
+
       const childX = childWidget.position?.x || 0;
       const childY = childWidget.position?.y || 0;
 
@@ -938,7 +1154,7 @@ private calculateSimilarity(a: string, b: string): number {
     try {
       const frame = await this.getFrame(boardId, frameId);
       let childWidget;
-      
+
       // Try to get child widget as different types
       try {
         childWidget = await this.getSticky(boardId, childWidgetId);
@@ -955,7 +1171,7 @@ private calculateSimilarity(a: string, b: string): number {
       }
 
       const calculatedPosition = await this.calculateChildrenCoordinates(boardId, frameId, childWidgetId);
-      
+
       return {
         frame,
         childWidget,
@@ -977,7 +1193,7 @@ private calculateSimilarity(a: string, b: string): number {
     const padding = 50;
     const usableWidth = frameWidth - (padding * 2);
     const usableHeight = frameHeight - (padding * 2);
-    
+
     return {
       title: { x: frameWidth / 2, y: padding + 30 },
       leftColumn: { x: padding + (usableWidth / 4), y: padding + 100 },
@@ -1002,14 +1218,14 @@ private calculateSimilarity(a: string, b: string): number {
       negative: { fontSize: 12, textAlign: 'left', color: '#dc2626' },
       neutral: { fontSize: 12, textAlign: 'left', color: '#2563eb' }
     };
-    
+
     return styles[type];
   }
 
   // Calculate text width based on frame width and content type
   calculateTextWidth(frameWidth: number, type: 'title' | 'fullWidth' | 'twoColumn' | 'body' = 'body'): number {
     const padding = 50;
-    
+
     switch (type) {
       case 'title':
         return frameWidth - 100;
@@ -1025,17 +1241,17 @@ private calculateSimilarity(a: string, b: string): number {
 
   // Create text with proper positioning and styling
   async createFrameText(
-    boardId: string, 
-    parentId: string, 
-    content: string, 
-    position: { x: number, y: number }, 
+    boardId: string,
+    parentId: string,
+    content: string,
+    position: { x: number, y: number },
     type: 'title' | 'header' | 'body' | 'positive' | 'negative' | 'neutral' = 'body',
     frameWidth?: number
   ): Promise<any> {
     const style = this.getTextStyles(type);
     const widthType = type === 'title' ? 'title' : 'body';
     const width = frameWidth ? this.calculateTextWidth(frameWidth, widthType) : undefined;
-    
+
     return this.createText(
       boardId,
       { content },
@@ -1062,7 +1278,7 @@ private calculateSimilarity(a: string, b: string): number {
       const frame = await this.getFrame(boardId, frameId);
       const frameWidth = frame.geometry?.width || 1400;
       const frameHeight = frame.geometry?.height || 1000;
-      
+
       const positions = this.calculateFramePositions(frameWidth, frameHeight);
       const createdItems: any[] = [];
 
@@ -1152,13 +1368,13 @@ export class TemplateRecommendationEngine {
   }> {
     const boardInfo = await this.miroClient.getBoardInfo(boardId);
     const content = await this.miroClient.getBoardContent(boardId);
-    
+
     // Get unique item types
     const itemTypes = [...new Set(boardInfo.items.map(item => item.type))];
-    
+
     // Analyze content for keywords and categories
     const analysis = this.analyzeContentForKeywords(content);
-    
+
     return {
       content,
       itemTypes,
@@ -1237,7 +1453,7 @@ export class TemplateRecommendationEngine {
 
     // Enhanced matching with weights
     for (const [category, categoryData] of Object.entries(templateCategories)) {
-      const matchingKeywords = categoryData.keywords.filter(keyword => 
+      const matchingKeywords = categoryData.keywords.filter(keyword =>
         allText.includes(keyword.toLowerCase())
       );
       if (matchingKeywords.length > 0) {
@@ -1281,4 +1497,4 @@ export class TemplateRecommendationEngine {
   }
 }
 
-  
+
