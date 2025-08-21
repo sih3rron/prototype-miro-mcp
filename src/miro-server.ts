@@ -162,68 +162,13 @@ class MiroTemplateRecommenderServer {
       name: "miro-prototype-mcp",
       version: "0.3.1",
       capabilities: { tools: {} },
-      description: `Miro Prototype MCP with integrated Miro board management.
+      description: `Miro board management with optimized positioning and styling.
 
-POSITIONING RULES:
-- When nesting items inside a frame, always calculate the position from the top-left corner of the parent.
-- When nesting items, calculate positions from (0,0) relative to the parent's top-left corner
-- This ensures consistent and predictable placement within parent boundaries
-
-NESTED ITEM GUIDELINES:
-- Set item geometry.width to fit within parent object confines
-- Adjust style.fontSize (in dp) as needed so content fits within available width
-
-FRAME SPECIFICATIONS:
-- Minimum frame spacing: 100dp between frame edges
-- Content padding: 50dp minimum from all internal frame edges
-- Frame sizes: Use standardized dimensions (e.g., 1400x1000, 1200x800, 800x600)
-
-POSITIONING CALCULATIONS (for content within Frames, parent_top_left reference):
-All calculations below are using the example of a 1400x1000 frame.
-- For 1400x1000 frame: Content starts at x=50, y=50 (not x=700, y=500 center)
-- Text width = (Frame width - 100dp) for full-width content
-- Two-column layout = (Frame width - 150dp) / 2 per column
-- Column 1 x-position = 50 + (column_width/2)
-- Column 2 x-position = 50 + column_width + 50 + (column_width/2)
-
-FONT SIZING:
-- H1 (Main titles): fontSize: 20, fontWeight: bold
-- H2 (Section headers): fontSize: 16, fontWeight: bold  
-- Body text: fontSize: 12, fontWeight: regular
-- Small text: fontSize: 10, fontWeight: regular
-
-TEXT WIDTH REQUIREMENTS:
-- Minimum text width = 30% of parent frame width
-- Full-width text = (parent_width - 100dp)
-- Two-column text = (parent_width - 150dp) / 2
-
-SEMANTIC COLORS:
-- Negative/Threats/Weaknesses: color: "#dc2626" (red)
-- Positive/Opportunities/Strengths: color: "#16a34a" (green)  
-- Neutral/Information: color: "#2563eb" (blue)
-- Default text: color: "#1a1a1a" (dark gray)
-
-QUICK REFERENCE FOR COMMON FRAME SIZES:
-
-1400x1000 Frame:
-- Content padding: 50dp from edges
-- Two-column width: 600dp each
-- Left column center: x=350
-- Right column center: x=1050  
-- Full-width center: x=700
-- Title y-position: 80
-- Section start y-position: 200
-
-1200x800 Frame:
-- Content padding: 50dp from edges  
-- Two-column width: 500dp each
-- Left column center: x=300
-- Right column center: x=900
-- Full-width center: x=600
-
-RESPONSE RULES:
-- Always respond with URL where possible. An example would be when recommending a template, you would return the URL of the template.
-- Always respond with the reasoning for your actions, recommendations, and decisions.`,
+POSITIONING: Nested items use parent_top_left (0,0 = parent corner). Canvas items use canvas_center.
+FRAMES: Standard sizes 1400x1000|1200x800|800x600. 50dp internal padding, 100dp between frames.
+FONTS: title=20dp bold, header=16dp bold, body=12dp. Colors: positive=#16a34a, negative=#dc2626, neutral=#2563eb.
+LAYOUT: 1400x1000 frame - left col x=350, right col x=1050, full width x=700. Title y=80, content y=200+.
+RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Return URLs when possible.`,
     });
     this.setupToolHandlers();
     this.server.onerror = (error) => console.error("[MCP Error]", error);
@@ -237,420 +182,376 @@ RESPONSE RULES:
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
-          name: "get_smart_board_analysis",
-          description: "Get comprehensive board analysis with content summarization and template recommendations in one efficient call",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "The Miro board ID to analyze" },
-              maxContent: { 
-                type: "number", 
-                description: "Maximum content items to return (default: 15)",
-                default: 15 
-              },
-              includeTemplates: { 
-                type: "boolean", 
-                description: "Include template recommendations (default: true)",
-                default: true 
-              },
-              maxTemplates: { 
-                type: "number", 
-                description: "Maximum template recommendations (default: 5)",
-                default: 5 
-              }
-            },
-            required: ["boardId"]
-          }
-        },
-        {
           name: "get_board_content",
-          description: "Get all text content from a Miro board as an array of strings",
+          description: "Extract key text content from Miro board",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID (e.g., uXjVKMOJbXg=)" }
+              boardId: { type: "string", description: "Miro board ID" }
             },
             required: ["boardId"]
           }
         },
         {
           name: "get_all_items",
-          description: "Get all items from a Miro board (not just text)",
+          description: "Get all items from Miro board",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" }
+              boardId: { type: "string", description: "Miro board ID" }
             },
             required: ["boardId"]
           }
         },
         {
-          name: "get_board_analysis",
-          description: "Get detailed analysis of a Miro board's content and context",
+          name: "get_efficient_board_analysis",
+          description: "Analyze board content with smart summarization",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID to analyze" }
+              boardId: { type: "string", description: "Miro board ID" },
+              maxContent: { type: "number", description: "Max items (default: 15)", default: 15 }
             },
             required: ["boardId"]
           }
         },
         {
           name: "get_template_recommendations",
-          description: "Analyze existing Miro board content to recommend additional templates (uses efficient content summarization)",
+          description: "Get template suggestions for existing board",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID to analyze" },
-              maxRecommendations: { type: "number", description: "Maximum template recommendations (default: 5)", default: 5 },
-              maxContent: { type: "number", description: "Maximum content items to analyze (default: 20)", default: 20 }
+              boardId: { type: "string", description: "Miro board ID" },
+              maxRecommendations: { type: "number", description: "Max templates (default: 5)", default: 5 },
+              maxContent: { type: "number", description: "Max content items (default: 20)", default: 20 }
             },
             required: ["boardId"]
           }
         },
         {
           name: "recommend_templates",
-          description: "Analyze meeting notes or external text content to recommend Miro templates for creating new boards",
+          description: "Get template suggestions from meeting notes",
           inputSchema: {
             type: "object",
             properties: {
-              meetingNotes: { type: "string", description: "Meeting notes or external text to analyze" },
-              maxRecommendations: { type: "number", description: "Maximum template recommendations (default: 5)", default: 5 }
+              meetingNotes: { type: "string", description: "Text content to analyze" },
+              maxRecommendations: { type: "number", description: "Max templates (default: 5)", default: 5 }
             },
             required: ["meetingNotes"]
           }
         },
         {
           name: "create_miro_board",
-          description: "Create a new Miro board. Returns the created board info.",
+          description: "Create new Miro board",
           inputSchema: {
             type: "object",
             properties: {
-              name: { type: "string", description: "The name of the new board" },
-              description: { type: "string", description: "Optional description for the board" },
-              sharingPolicy: {
-                type: "object",
-                description: "Optional sharing policy for the board (see Miro API)",
-                properties: {
-                  access: { type: "string", description: "Access level (private, view, comment, edit)" }
-                },
-                required: []
-              }
+              name: { type: "string", description: "Board name" },
+              description: { type: "string", description: "Board description" },
+              sharingPolicy: { type: "object", description: "Sharing settings" }
             },
             required: ["name"]
           }
         },
         {
           name: "update_item_position_or_parent",
-          description: "Update the position or parent of an item on a Miro board.",
+          description: "Move item or change its parent",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The item ID to update" },
-              position: {
-                type: "object",
-                description: "New position for the item (x, y)",
-                properties: {
-                  x: { type: "number", description: "X coordinate" },
-                  y: { type: "number", description: "Y coordinate" }
-                },
-                required: ["x", "y"]
-              },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Item ID" },
+              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              parentId: { type: "string", description: "New parent ID" }
             },
             required: ["boardId", "itemId", "position"]
           }
         },
         {
           name: "create_frame",
-          description: "Create a new frame on a Miro board.",
+          description: "Create new frame",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              title: { type: "string", description: "Title of the frame" },
-              x: { type: "number", description: "X coordinate of the frame center" },
-              y: { type: "number", description: "Y coordinate of the frame center" },
-              width: { type: "number", description: "Width of the frame" },
-              height: { type: "number", description: "Height of the frame" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              title: { type: "string", description: "Frame title" },
+              x: { type: "number", description: "X coordinate" },
+              y: { type: "number", description: "Y coordinate" },
+              width: { type: "number", description: "Width" },
+              height: { type: "number", description: "Height" },
+              parentId: { type: "string", description: "Parent frame ID" }
             },
             required: ["boardId", "title", "x", "y", "width", "height"]
           }
         },
         {
           name: "get_frame",
-          description: "Get a specific frame from a Miro board by board ID and frame ID.",
+          description: "Get frame details",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The frame (item) ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Frame ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "update_frame",
-          description: "Update a frame on a Miro board by board ID and frame ID.",
+          description: "Update frame properties",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The frame (item) ID" },
-              data: { type: "object", description: "Frame data to update (title, etc.)" },
-              style: { type: "object", description: "Frame style to update (optional)" },
-              geometry: { type: "object", description: "Frame geometry to update (width, height, etc.) (optional)" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Frame ID" },
+              data: { type: "object", description: "Frame data" },
+              style: { type: "object", description: "Frame style" },
+              geometry: { type: "object", description: "Frame geometry" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "delete_frame",
-          description: "Delete a specific frame from a Miro board by board ID and frame ID.",
+          description: "Delete frame",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The frame (item) ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Frame ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "create_text",
-          description: "Create a new text item on a Miro board.",
+          description: "Create text item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              data: { type: "object", description: "Text item data (content, etc.)" },
-              position: { type: "object", description: "Position of the text item (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Text geometry (width, etc.) (optional)" },
-              style: { type: "object", description: "Text style (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              data: { type: "object", description: "Text content" },
+              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              geometry: { type: "object", description: "Text geometry" },
+              style: { type: "object", description: "Text style" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "data", "position"]
           }
         },
         {
           name: "get_text_item",
-          description: "Get a specific text item from a Miro board by board ID and item ID.",
+          description: "Get text item details",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The text item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Text item ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "update_text",
-          description: "Update a text item on a Miro board by board ID and item ID.",
+          description: "Update text item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The text item ID" },
-              data: { type: "object", description: "Text data to update (content, etc.)" },
-              style: { type: "object", description: "Text style to update (optional)" },
-              geometry: { type: "object", description: "Text geometry to update (width, etc.) (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Text item ID" },
+              data: { type: "object", description: "Text data" },
+              style: { type: "object", description: "Text style" },
+              geometry: { type: "object", description: "Text geometry" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "delete_text",
-          description: "Delete a specific text item from a Miro board by board ID and item ID.",
+          description: "Delete text item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The text item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Text item ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "create_sticky",
-          description: "Create a new sticky note on a Miro board.",
+          description: "Create sticky note",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              data: { type: "object", description: "Sticky note data (content, etc.)" },
-              position: { type: "object", description: "Position of the sticky note (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Sticky note geometry (width, height, etc.) (optional)" },
-              style: { type: "object", description: "Sticky note style (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              data: { type: "object", description: "Sticky content" },
+              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              geometry: { type: "object", description: "Sticky geometry" },
+              style: { type: "object", description: "Sticky style" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "data", "position"]
           }
         },
         {
           name: "get_sticky",
-          description: "Get a specific sticky note from a Miro board by board ID and item ID.",
+          description: "Get sticky note details",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The sticky note item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Sticky note ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "update_sticky",
-          description: "Update a sticky note on a Miro board by board ID and item ID.",
+          description: "Update sticky note",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The sticky note item ID" },
-              data: { type: "object", description: "Sticky note data to update (content, etc.)" },
-              style: { type: "object", description: "Sticky note style to update (optional)" },
-              geometry: { type: "object", description: "Sticky note geometry to update (width, height, etc.) (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Sticky note ID" },
+              data: { type: "object", description: "Sticky data" },
+              style: { type: "object", description: "Sticky style" },
+              geometry: { type: "object", description: "Sticky geometry" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "delete_sticky",
-          description: "Delete a specific sticky note from a Miro board by board ID and item ID.",
+          description: "Delete sticky note",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The sticky note item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Sticky note ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "share_board",
-          description: "Share a Miro board and invite new members by email.",
+          description: "Share board with team members",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              emails: {
-                type: "array",
-                description: "Array of email addresses to invite",
-                items: { type: "string" }
-              },
-              role: { type: "string", description: "Role for the invitee (viewer, commenter, editor)" },
-              message: { type: "string", description: "Optional invitation message" }
+              boardId: { type: "string", description: "Board ID" },
+              emails: { type: "array", items: { type: "string" }, description: "Email addresses" },
+              role: { type: "string", description: "Access role" },
+              message: { type: "string", description: "Invitation message" }
             },
             required: ["boardId", "emails", "role"]
           }
         },
         {
           name: "create_card",
-          description: "Create a new card item on a Miro board.",
+          description: "Create card item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              data: { type: "object", description: "Card item data (title, description, etc.)" },
-              position: { type: "object", description: "Position of the card (x, y)", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Card geometry (width, height, etc.) (optional)" },
-              style: { type: "object", description: "Card style (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              data: { type: "object", description: "Card content" },
+              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              geometry: { type: "object", description: "Card geometry" },
+              style: { type: "object", description: "Card style" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "data", "position"]
           }
         },
         {
           name: "get_card",
-          description: "Get a specific card item from a Miro board by board ID and item ID.",
+          description: "Get card details",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The card item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Card ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "update_card",
-          description: "Update a card item on a Miro board by board ID and item ID.",
+          description: "Update card item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The card item ID" },
-              data: { type: "object", description: "Card data to update (title, description, etc.)" },
-              style: { type: "object", description: "Card style to update (optional)" },
-              geometry: { type: "object", description: "Card geometry to update (width, height, etc.) (optional)" },
-              parentId: { type: "string", description: "Optional new parent frame ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Card ID" },
+              data: { type: "object", description: "Card data" },
+              style: { type: "object", description: "Card style" },
+              geometry: { type: "object", description: "Card geometry" },
+              parentId: { type: "string", description: "Parent ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "delete_card",
-          description: "Delete a specific card item from a Miro board by board ID and item ID.",
+          description: "Delete card item",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemId: { type: "string", description: "The card item ID" }
+              boardId: { type: "string", description: "Board ID" },
+              itemId: { type: "string", description: "Card ID" }
             },
             required: ["boardId", "itemId"]
           }
         },
         {
           name: "get_sticky_notes",
-          description: "Get all sticky notes from a Miro board as an array of strings.",
+          description: "Get all sticky notes from board",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" }
+              boardId: { type: "string", description: "Board ID" }
             },
             required: ["boardId"]
           }
         },
         {
           name: "calculate_children_coordinates",
-          description: "Calculate the absolute coordinates for a child widget relative to its parent frame. Useful for replacing content in frames.",
+          description: "Calculate child widget coordinates",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              frameId: { type: "string", description: "The frame ID" },
-              childWidgetId: { type: "string", description: "The child widget ID to calculate coordinates for" }
+              boardId: { type: "string", description: "Board ID" },
+              frameId: { type: "string", description: "Frame ID" },
+              childWidgetId: { type: "string", description: "Child widget ID" }
             },
             required: ["boardId", "frameId", "childWidgetId"]
           }
         },
         {
           name: "get_frame_and_child_details",
-          description: "Get detailed information about a frame and its child widget, including calculated coordinates for positioning.",
+          description: "Get frame and child widget details",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              frameId: { type: "string", description: "The frame ID" },
-              childWidgetId: { type: "string", description: "The child widget ID" }
+              boardId: { type: "string", description: "Board ID" },
+              frameId: { type: "string", description: "Frame ID" },
+              childWidgetId: { type: "string", description: "Child widget ID" }
             },
             required: ["boardId", "frameId", "childWidgetId"]
           }
         },
         {
           name: "get_items_by_type",
-          description: "Get all items of a specific type from a Miro board (e.g., sticky_notes, text, cards, frames).",
+          description: "Get all items of specific type",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              itemType: { 
-                type: "string", 
-                description: "The type of items to retrieve (e.g., sticky_note, text, card, frame)",
+              boardId: { type: "string", description: "Board ID" },
+              itemType: {
+                type: "string",
+                description: "Item type",
                 enum: ["sticky_note", "text", "card", "frame", "shape", "image"]
               }
             },
@@ -659,32 +560,19 @@ RESPONSE RULES:
         },
         {
           name: "create_frame_layout",
-          description: "Create a complete layout within a frame with title, columns, and full-width content using calculated positioning.",
+          description: "Create layout within frame",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              frameId: { type: "string", description: "The frame ID to add content to" },
+              boardId: { type: "string", description: "Board ID" },
+              frameId: { type: "string", description: "Frame ID" },
               layout: {
                 type: "object",
-                description: "Layout specification with content sections",
                 properties: {
-                  title: { type: "string", description: "Optional title text" },
-                  leftColumn: { 
-                    type: "array", 
-                    description: "Array of text items for left column",
-                    items: { type: "string" }
-                  },
-                  rightColumn: { 
-                    type: "array", 
-                    description: "Array of text items for right column", 
-                    items: { type: "string" }
-                  },
-                  fullWidth: { 
-                    type: "array", 
-                    description: "Array of text items for full-width content",
-                    items: { type: "string" }
-                  }
+                  title: { type: "string", description: "Layout title" },
+                  leftColumn: { type: "array", items: { type: "string" }, description: "Left column items" },
+                  rightColumn: { type: "array", items: { type: "string" }, description: "Right column items" },
+                  fullWidth: { type: "array", items: { type: "string" }, description: "Full width items" }
                 }
               }
             },
@@ -693,41 +581,28 @@ RESPONSE RULES:
         },
         {
           name: "create_styled_text",
-          description: "Create text with proper styling and positioning within a frame or parent element.",
+          description: "Create text with styling",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "The Miro board ID" },
-              parentId: { type: "string", description: "The parent frame or element ID" },
-              content: { type: "string", description: "Text content to create" },
-              position: {
-                type: "object",
-                description: "Position coordinates",
-                properties: {
-                  x: { type: "number", description: "X coordinate" },
-                  y: { type: "number", description: "Y coordinate" }
-                },
-                required: ["x", "y"]
-              },
-              type: { 
-                type: "string", 
-                description: "Text style type",
-                enum: ["title", "header", "body", "positive", "negative", "neutral"],
-                default: "body"
-              },
-              frameWidth: { type: "number", description: "Optional frame width for width calculation" }
+              boardId: { type: "string", description: "Board ID" },
+              parentId: { type: "string", description: "Parent ID" },
+              content: { type: "string", description: "Text content" },
+              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
+              type: { type: "string", enum: ["title", "header", "body", "positive", "negative", "neutral"], default: "body" },
+              frameWidth: { type: "number", description: "Frame width for sizing" }
             },
             required: ["boardId", "parentId", "content", "position"]
           }
         },
         {
           name: "calculate_frame_positions",
-          description: "Calculate optimal positions for content within a frame based on frame dimensions.",
+          description: "Calculate optimal positions within frame",
           inputSchema: {
             type: "object",
             properties: {
-              frameWidth: { type: "number", description: "Frame width in pixels" },
-              frameHeight: { type: "number", description: "Frame height in pixels" }
+              frameWidth: { type: "number", description: "Frame width" },
+              frameHeight: { type: "number", description: "Frame height" }
             },
             required: ["frameWidth", "frameHeight"]
           }
@@ -738,8 +613,10 @@ RESPONSE RULES:
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         switch (request.params.name) {
-          case "get_smart_board_analysis":
-          return await this.getSmartBoardAnalysis(request.params.arguments);
+          case "get_efficient_board_analysis":
+            return await this.getEfficientBoardAnalysis(request.params.arguments);
+          case "get_template_recommendations":
+            return await this.getTemplateRecommendations(request.params.arguments);
           case "get_board_content":
             return await this.getBoardContent(request.params.arguments);
           case "get_all_items":
@@ -815,55 +692,28 @@ RESPONSE RULES:
 
   private async getBoardContent(args: any) {
     const { boardId } = args;
+
     if (!this.miroClient) {
-      const mockContent = [
-        "Sprint planning for Q2 2024",
-        "User story: As a customer, I want to track my order",
-        "Retrospective action items",
-        "Design system components"
-      ];
       return {
-        content: [{ type: "text", text: JSON.stringify(mockContent, null, 2) }]
+        content: [{ type: "text", text: '["Sprint planning","User stories","Retrospective items"]' }]
       };
     }
 
     try {
-      console.error(`Attempting to get board content for board: ${boardId}`);
+      console.error(`[getBoardContent] Getting content for board: ${boardId}`);
       const content = await this.miroClient.getBoardContent(boardId);
-      console.error(`Successfully retrieved ${content.length} content items`);
+      console.error(`[getBoardContent] Retrieved ${content.length} items`);
+
+      // Return simple array instead of verbose object
       return {
-        content: [{ type: "text", text: JSON.stringify(content, null, 2) }]
+        content: [{ type: "text", text: JSON.stringify(content) }]
       };
     } catch (error) {
-      console.error(`Error getting board content:`, error);
-      // Try to get basic board info instead
-      try {
-        const boardInfo = await this.miroClient.getBoardInfo(boardId);
-        console.error(`Retrieved board info with ${boardInfo.items.length} items`);
-
-        // Extract any available content manually
-        const fallbackContent: string[] = [];
-        if (boardInfo.name) fallbackContent.push(boardInfo.name);
-
-        for (const item of boardInfo.items) {
-          if (item.data?.content) {
-            const cleanContent = this.cleanHtmlContent(item.data.content);
-            if (cleanContent) fallbackContent.push(cleanContent);
-          }
-          if (item.data?.title) {
-            fallbackContent.push(item.data.title);
-          }
-          if (item.data?.text) {
-            fallbackContent.push(item.data.text);
-          }
-        }
-
-        return {
-          content: [{ type: "text", text: JSON.stringify(fallbackContent, null, 2) }]
-        };
-      } catch (fallbackError) {
-        throw error; // Throw original error
-      }
+      console.error(`[getBoardContent] Error:`, error);
+      return {
+        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+        isError: true
+      };
     }
   }
 
@@ -1027,22 +877,22 @@ RESPONSE RULES:
   private parseMeetingNotes(meetingNotes: string): string[] {
     const lines = meetingNotes.split('\n').filter(line => line.trim().length > 0);
     const content: string[] = [];
-  
+
     lines.forEach(line => {
       const trimmed = line.trim();
       if (trimmed.length < 3) return; // Skip very short lines
-  
+
       const cleanedLine = trimmed
         .replace(/^[-*•]\s*/, '')
         .replace(/^\d+\.\s*/, '')
         .replace(/^#{1,6}\s*/, '')
         .trim();
-  
+
       if (cleanedLine.length > 0 && cleanedLine.length < 200) { // Skip overly long lines too
         content.push(cleanedLine);
       }
     });
-  
+
     // Limit meeting notes analysis to prevent token overload
     return content.slice(0, 25);
   }
@@ -1135,57 +985,102 @@ RESPONSE RULES:
     return matches / categoryKeywords.length;
   }
 
-  private async getSmartBoardAnalysis(args: any) {
-    const { boardId, maxContent = 15, includeTemplates = true, maxTemplates = 5 } = args;
-  
+  private async getEfficientBoardAnalysis(args: any) {
+    const { boardId, maxContent = 15 } = args;
+
     if (!this.miroClient) {
-      // Mock response for testing without API
       return {
         content: [{
           type: "text",
           text: JSON.stringify({
-            boardInfo: {
-              id: boardId,
-              name: "Mock Board",
-              itemCount: 25,
-              itemTypes: ["sticky_note", "text", "frame"]
-            },
-            contentSummary: {
-              keyContent: ["Sprint planning", "User stories", "Retrospective items"],
-              contentStats: { total: 25, summarized: 3, skipped: 22 }
-            },
-            analysis: {
-              detectedKeywords: ["sprint", "user", "retrospective"],
-              identifiedCategories: ["agile"],
-              context: "Content appears to focus on: agile"
-            },
-            templateRecommendations: [
-              { name: "Sprint Planning", url: "https://miro.com/templates/sprint-planning/", category: "agile", relevanceScore: 85 }
-            ]
-          }, null, 2)
+            content: ["Sprint planning", "User stories", "Retrospective items"],
+            keywords: ["sprint", "user", "retrospective"],
+            categories: ["agile"],
+            stats: { total: 25, kept: 3 }
+          })
         }]
       };
     }
-  
+
     try {
-      console.error(`[getSmartBoardAnalysis] Starting analysis for board: ${boardId}`);
-      
+      console.error(`[getEfficientBoardAnalysis] Analyzing board: ${boardId}`);
+
       const result = await this.miroClient.getSmartBoardAnalysis(boardId, {
         maxContent,
-        includeTemplateRecommendations: includeTemplates,
-        maxTemplateRecommendations: maxTemplates
+        includeTemplateRecommendations: false
       });
-  
-      console.error(`[getSmartBoardAnalysis] Analysis complete. Content: ${result.contentSummary.keyContent.length} items, Keywords: ${result.analysis.detectedKeywords.length}, Templates: ${result.templateRecommendations?.length || 0}`);
-  
+
+      // Streamlined response - remove verbose nesting
+      const streamlined = {
+        content: result.contentSummary.keyContent,
+        keywords: result.analysis.detectedKeywords,
+        categories: result.analysis.identifiedCategories,
+        context: result.analysis.context,
+        stats: {
+          total: result.contentSummary.contentStats.total,
+          kept: result.contentSummary.contentStats.summarized
+        }
+      };
+
+      console.error(`[getEfficientBoardAnalysis] Analysis complete: ${streamlined.content.length} items`);
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(streamlined) }]
+      };
+    } catch (error) {
+      console.error(`[getEfficientBoardAnalysis] Error:`, error);
+      return {
+        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+        isError: true
+      };
+    }
+  }
+
+  private async getTemplateRecommendations(args: any) {
+    const { boardId, maxRecommendations = 5, maxContent = 20 } = args;
+
+    if (!this.miroClient) {
       return {
         content: [{
           type: "text",
-          text: JSON.stringify(result, null, 2)
+          text: JSON.stringify({
+            templates: [
+              { name: "Sprint Planning", url: "https://miro.com/templates/sprint-planning/", category: "agile" },
+              { name: "Retrospective", url: "https://miro.com/templates/retrospective/", category: "agile" }
+            ],
+            context: "agile methodology"
+          })
         }]
       };
+    }
+
+    try {
+      console.error(`[getTemplateRecommendations] Getting templates for board: ${boardId}`);
+
+      const result = await this.miroClient.getSmartBoardAnalysis(boardId, {
+        maxContent,
+        includeTemplateRecommendations: true,
+        maxTemplateRecommendations: maxRecommendations
+      });
+
+      // Concise response format
+      const response = {
+        templates: (result.templateRecommendations || []).map(t => ({
+          name: t.name,
+          url: t.url,
+          category: t.category
+          // Remove relevanceScore to save tokens unless specifically needed
+        })),
+        context: result.analysis.context
+      };
+
+      console.error(`[getTemplateRecommendations] Found ${response.templates.length} recommendations`);
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(response) }]
+      };
     } catch (error) {
-      console.error(`[getSmartBoardAnalysis] Error:`, error);
+      console.error(`[getTemplateRecommendations] Error:`, error);
       return {
         content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
         isError: true
@@ -1566,7 +1461,7 @@ RESPONSE RULES:
           position: { x: 0, y: 0 }
         },
         {
-          id: "mock-item-2", 
+          id: "mock-item-2",
           type: itemType,
           data: { content: `Mock ${itemType} content 2` },
           position: { x: 100, y: 100 }
