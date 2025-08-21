@@ -121,25 +121,32 @@ export class MiroClient {
   async getBoardContent(boardId: string): Promise<string[]> {
     try {
       const boardInfo = await this.getBoardInfo(boardId);
-      const content: string[] = [];
-
+      const rawContent: string[] = [];
+  
       // Extract text content from various item types
       for (const item of boardInfo.items) {
         const textContent = this.extractTextFromItem(item);
         if (textContent) {
-          content.push(textContent);
+          rawContent.push(textContent);
         }
       }
-
+  
       // Add board name and description
       if (boardInfo.name) {
-        content.unshift(boardInfo.name);
+        rawContent.unshift(boardInfo.name);
       }
       if (boardInfo.description) {
-        content.push(boardInfo.description);
+        rawContent.push(boardInfo.description);
       }
-
-      return content;
+  
+      console.error(`[getBoardContent] Raw content extracted: ${rawContent.length} items`);
+  
+      // Apply summarization to reduce token usage
+      const { summary } = this.summarizeContent(rawContent, 15); // Limit to 15 most relevant items
+      
+      console.error(`[getBoardContent] Summarized to: ${summary.length} items`);
+  
+      return summary;
     } catch (error) {
       throw new Error(`Failed to extract board content: ${(error as Error).message}`);
     }
@@ -209,6 +216,171 @@ export class MiroClient {
       .replace(/&#39;/g, "'") // Decode apostrophes
       .trim();
   }
+
+
+/**
+ * Summarizes board content to reduce token usage while maintaining relevance
+ * @param content Array of all extracted content
+ * @param maxItems Maximum number of items to return (default: 20)
+ */
+
+private summarizeContent(content: string[], maxItems: number = 20): {
+  summary: string[];
+  contentStats: { total: number; summarized: number; skipped: number };
+} {
+  console.error(`[summarizeContent] Processing ${content.length} items`);
+  
+  // Step 1: Filter out noise and very short/long content
+  const meaningfulContent = content.filter(item => {
+    if (!item || typeof item !== 'string') return false;
+    const trimmed = item.trim();
+    
+    // Skip very short items (likely noise)
+    if (trimmed.length < 3) return false;
+    
+    // Skip very long items (likely to consume many tokens)
+    if (trimmed.length > 300) return false;
+    
+    // Skip URLs and obvious noise
+    if (/^https?:\/\//.test(trimmed)) return false;
+    if (/^[^\w\s]*$/.test(trimmed)) return false; // Only punctuation
+    if (/^(.)\1{3,}$/.test(trimmed)) return false; // Repeated characters
+    
+    return true;
+  });
+
+  console.error(`[summarizeContent] After filtering: ${meaningfulContent.length} items`);
+
+  // Step 2: Remove near-duplicates
+  const uniqueContent = this.removeSimilarContent(meaningfulContent);
+  console.error(`[summarizeContent] After deduplication: ${uniqueContent.length} items`);
+
+  // Step 3: Prioritize by relevance
+  const prioritized = this.prioritizeContent(uniqueContent);
+
+  // Step 4: Take only the top items
+  const summary = prioritized.slice(0, maxItems);
+
+  return {
+    summary,
+    contentStats: {
+      total: content.length,
+      summarized: summary.length,
+      skipped: content.length - summary.length
+    }
+  };
+}
+
+/**
+ * Removes content items that are very similar to avoid redundancy
+ */
+private removeSimilarContent(content: string[]): string[] {
+  const unique: string[] = [];
+  
+  for (const item of content) {
+    const normalized = item.toLowerCase().trim();
+    
+    // Check if this item is too similar to anything we already have
+    const isDuplicate = unique.some(existing => {
+      const existingNormalized = existing.toLowerCase().trim();
+      
+      // Exact match
+      if (normalized === existingNormalized) return true;
+      
+      // Very high similarity (80%+)
+      const similarity = this.calculateSimilarity(existingNormalized, normalized);
+      return similarity > 0.8;
+    });
+
+    if (!isDuplicate) {
+      unique.push(item);
+    }
+  }
+  
+  return unique;
+}
+
+/**
+ * Scores content by relevance - higher scores = more likely to be meaningful
+ */
+private prioritizeContent(content: string[]): string[] {
+  return content
+    .map(item => ({
+      content: item,
+      score: this.getContentRelevanceScore(item)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.content);
+}
+
+/**
+ * Calculates how "relevant" a piece of content is likely to be
+ */
+private getContentRelevanceScore(content: string): number {
+  let score = 0;
+  const words = content.split(/\s+/);
+  const length = content.length;
+  
+  // Length scoring - sweet spot is 10-100 characters
+  if (length >= 10 && length <= 100) score += 3;
+  else if (length > 100 && length <= 200) score += 1;
+  
+  // Multiple words are generally more meaningful than single words
+  if (words.length > 1) score += 2;
+  if (words.length >= 4) score += 1;
+  
+  // Business/project terminology boost
+  const businessTerms = [
+    'project', 'task', 'goal', 'team', 'strategy', 'plan', 'idea', 'issue', 
+    'solution', 'user', 'customer', 'feature', 'requirement', 'sprint', 
+    'meeting', 'action', 'decision', 'risk', 'opportunity'
+  ];
+  
+  const lowerContent = content.toLowerCase();
+  const matchingTerms = businessTerms.filter(term => lowerContent.includes(term));
+  score += matchingTerms.length * 2;
+  
+  // Question format often indicates important content
+  if (content.includes('?')) score += 1;
+  
+  // Avoid obvious noise patterns
+  if (/^(untitled|new|item|text|note|card)\s*\d*$/i.test(content)) score -= 5;
+  if (/^\d+$/.test(content)) score -= 3; // Just numbers
+  
+  return score;
+}
+
+/**
+ * Calculates similarity between two strings using Levenshtein distance
+ * Returns a value between 0 (completely different) and 1 (identical)
+ */
+
+private calculateSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length === 0 || b.length === 0) return 0;
+  
+  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+  // Initialize first row and column
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+  // Fill the matrix
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,         // deletion
+        matrix[i][j - 1] + 1,         // insertion
+        matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1) // substitution
+      );
+    }
+  }
+
+  // Convert distance to similarity score
+  const distance = matrix[a.length][b.length];
+  const maxLength = Math.max(a.length, b.length);
+  return maxLength === 0 ? 1 : 1 - distance / maxLength;
+}
 
   async getItemsByType(boardId: string, itemType: string): Promise<MiroItem[]> {
     try {
@@ -1108,3 +1280,5 @@ export class TemplateRecommendationEngine {
       : "General collaborative work";
   }
 }
+
+  
