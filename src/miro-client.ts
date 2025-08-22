@@ -368,6 +368,32 @@ export class MiroClient {
     return Math.min((matches / relevantKeywords.length) * 100, 100);
   }
 
+  // Replace this helper method:
+private extractTextContent(item: any): string | null {
+  // This should call the existing MiroClient method
+  // But we can't access it directly from the server class
+  
+  // Instead, implement a simplified version here:
+  if (item.isSupported === false) return null;
+
+  switch (item.type) {
+    case 'text':
+    case 'sticky_note':
+      if (item.data?.content) {
+        return this.cleanHtmlContent(item.data.content);
+      }
+      return item.data?.text || null;
+    case 'card':
+      const title = item.data?.title || '';
+      const content = item.data?.content ? this.cleanHtmlContent(item.data.content) : '';
+      return [title, content].filter(Boolean).join(' - ') || null;
+    case 'frame':
+      return item.data?.title || null;
+    default:
+      return null;
+  }
+}
+
   private extractTextFromItem(item: MiroItem): string | null {
     // Skip unsupported items
     if (item.isSupported === false) {

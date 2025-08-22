@@ -182,23 +182,26 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
-          name: "get_board_content",
-          description: "Extract key text content from Miro board",
+          name: "get_board_items",
+          description: "Get board items with flexible filtering and output options",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "Miro board ID" }
-            },
-            required: ["boardId"]
-          }
-        },
-        {
-          name: "get_all_items",
-          description: "Get all items from Miro board",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Miro board ID" }
+              boardId: { type: "string", description: "Board ID" },
+              output: {
+                type: "string",
+                enum: ["content", "items", "both"],
+                description: "Return text content only, full items, or both",
+                default: "content"
+              },
+              itemTypes: {
+                type: "array",
+                items: { 
+                  type: "string", 
+                  enum: ["sticky_note", "text", "card", "frame", "shape", "image"] 
+                },
+                description: "Filter by specific item types (optional - returns all if not specified)"
+              }
             },
             required: ["boardId"]
           }
@@ -506,17 +509,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
           }
         },
         {
-          name: "get_sticky_notes",
-          description: "Get all sticky notes from board",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" }
-            },
-            required: ["boardId"]
-          }
-        },
-        {
           name: "calculate_children_coordinates",
           description: "Calculate child widget coordinates",
           inputSchema: {
@@ -540,22 +532,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
               childWidgetId: { type: "string", description: "Child widget ID" }
             },
             required: ["boardId", "frameId", "childWidgetId"]
-          }
-        },
-        {
-          name: "get_items_by_type",
-          description: "Get all items of specific type",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemType: {
-                type: "string",
-                description: "Item type",
-                enum: ["sticky_note", "text", "card", "frame", "shape", "image"]
-              }
-            },
-            required: ["boardId", "itemType"]
           }
         },
         {
@@ -612,15 +588,13 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
-        switch (request.params.name) {
+        switch (request.params.name) { 
+          case "get_board_items":
+            return await this.getBoardItems(request.params.arguments);
           case "get_efficient_board_analysis":
             return await this.getEfficientBoardAnalysis(request.params.arguments);
           case "get_template_recommendations":
             return await this.getTemplateRecommendations(request.params.arguments);
-          case "get_board_content":
-            return await this.getBoardContent(request.params.arguments);
-          case "get_all_items":
-            return await this.getAllItems(request.params.arguments);
           case "get_board_analysis":
             return await this.getBoardAnalysis(request.params.arguments);
           case "recommend_templates":
@@ -647,8 +621,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             return await this.deleteText(request.params.arguments);
           case "create_sticky":
             return await this.createSticky(request.params.arguments);
-          case "get_sticky":
-            return await this.getSticky(request.params.arguments);
           case "update_sticky":
             return await this.updateSticky(request.params.arguments);
           case "delete_sticky":
@@ -663,14 +635,10 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             return await this.updateCard(request.params.arguments);
           case "delete_card":
             return await this.deleteCard(request.params.arguments);
-          case "get_sticky_notes":
-            return await this.getStickyNotes(request.params.arguments);
           case "calculate_children_coordinates":
             return await this.calculateChildrenCoordinates(request.params.arguments);
           case "get_frame_and_child_details":
             return await this.getFrameAndChildDetails(request.params.arguments);
-          case "get_items_by_type":
-            return await this.getItemsByType(request.params.arguments);
           case "create_frame_layout":
             return await this.createFrameLayout(request.params.arguments);
           case "create_styled_text":
@@ -731,25 +699,100 @@ private createErrorResponse(operation: string, error: Error, context?: string): 
   };
 }
 
-private async getBoardContent(args: any) {
-  const { boardId } = args;
-  
+/**
+ * Extract text content from board items (simplified version for server use)
+ */
+private extractTextContent(item: any): string | null {
+  if (item.isSupported === false) return null;
+
+  switch (item.type) {
+    case 'text':
+    case 'sticky_note':
+      return item.data?.content || item.data?.text || null;
+    case 'card':
+      const title = item.data?.title || '';
+      const content = item.data?.content || '';
+      return [title, content].filter(Boolean).join(' - ') || null;
+    case 'frame':
+      return item.data?.title || null;
+    default:
+      return null;
+  }
+}
+
+private async getBoardItems(args: any) {
+  const { 
+    boardId, 
+    output = "content",
+    itemTypes, 
+    summarize = true, 
+    maxItems = 20 
+  } = args;
+
   if (!this.miroClient) {
+    const mockItems = [
+      { id: "1", type: "sticky_note", data: { content: "Sprint planning" }, position: { x: 0, y: 0 } },
+      { id: "2", type: "text", data: { content: "User stories" }, position: { x: 100, y: 100 } }
+    ];
+    
+    const mockContent = ["Sprint planning", "User stories"];
+    
+    const mockResponse = output === "content" ? mockContent : 
+                        output === "items" ? mockItems :
+                        { content: mockContent, items: mockItems };
+    
     return {
-      content: [{ type: "text", text: '["Sprint planning","User stories","Retrospective items"]' }]
+      content: [{ type: "text", text: JSON.stringify(mockResponse) }]
     };
   }
 
   try {
-    console.error(`[getBoardContent] Getting content for board: ${boardId}`);
-    const content = await this.miroClient.getBoardContent(boardId);
-    console.error(`[getBoardContent] Retrieved ${content.length} items`);
-    
-    return {
-      content: [{ type: "text", text: JSON.stringify(content) }]
-    };
+    console.error(`[getBoardItems] Fetching items for board: ${boardId}, output: ${output}, types: ${itemTypes?.join(',') || 'all'}`);
+
+    if (output === "content") {
+      // Use existing optimized getBoardContent (already summarized)
+      const content = await this.miroClient.getBoardContent(boardId);
+      console.error(`[getBoardItems] Retrieved ${content.length} content items`);
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(content) }]
+      };
+    }
+
+    if (output === "items") {
+      const boardInfo = await this.miroClient.getBoardInfo(boardId);
+      let items = boardInfo.items;
+
+      if (itemTypes && itemTypes.length > 0) {
+        items = items.filter(item => itemTypes.includes(item.type));
+        console.error(`[getBoardItems] Filtered to ${items.length} items of types: ${itemTypes.join(',')}`);
+      }
+
+      console.error(`[getBoardItems] Retrieved ${items.length} full items`);
+      return {
+        content: [{ type: "text", text: JSON.stringify(items) }]
+      };
+    }
+
+    if (output === "both") {
+      // Get optimized content and filtered items
+      const content = await this.miroClient.getBoardContent(boardId); // Already optimized
+      const boardInfo = await this.miroClient.getBoardInfo(boardId);
+      let items = boardInfo.items;
+
+      if (itemTypes && itemTypes.length > 0) {
+        items = items.filter(item => itemTypes.includes(item.type));
+        console.error(`[getBoardItems] Filtered to ${items.length} items of types: ${itemTypes.join(',')}`);
+      }
+
+      console.error(`[getBoardItems] Retrieved ${content.length} content items and ${items.length} full items`);
+      return {
+        content: [{ type: "text", text: JSON.stringify({ content, items }) }]
+      };
+    }
+
   } catch (error) {
-    return this.createErrorResponse('Board content extraction', error as Error, boardId);
+    return this.createErrorResponse('Board items retrieval', error as Error, boardId);
   }
 }
 
@@ -767,29 +810,6 @@ private async getBoardContent(args: any) {
       .replace(/&#39;/g, "'") // Decode apostrophes
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
-  }
-
-  private async getAllItems(args: any) {
-    const { boardId } = args;
-    if (!this.miroClient) {
-      const mockItems = [
-        { id: "1", type: "sticky_note", data: { content: "Sprint planning for Q2 2024" }, position: { x: 0, y: 0 } },
-        { id: "2", type: "text", data: { content: "User story: As a customer, I want to track my order" }, position: { x: 100, y: 100 } }
-      ];
-      return {
-        content: [{ type: "text", text: JSON.stringify(mockItems, null, 2) }]
-      };
-    }
-
-    try {
-      const boardInfo = await this.miroClient.getBoardInfo(boardId);
-      return {
-        content: [{ type: "text", text: JSON.stringify(boardInfo.items, null, 2) }]
-      };
-    } catch (error) {
-
-      return this.createErrorResponse('All items', error as Error, boardId);
-    }
   }
 
   private async getBoardAnalysis(args: any) {
@@ -1290,18 +1310,6 @@ private async getBoardContent(args: any) {
     }
   }
 
-  private async getSticky(args: any) {
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.getSticky(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
   private async updateSticky(args: any) {
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
@@ -1390,31 +1398,6 @@ private async getBoardContent(args: any) {
     }
   }
 
-  private async getStickyNotes(args: any) {
-    const { boardId } = args;
-    if (!this.miroClient) {
-      const mockStickyNotes = [
-        "Sprint planning for Q2 2024",
-        "User story: As a customer, I want to track my order",
-        "Retrospective action items",
-        "Design system components"
-      ];
-      return {
-        content: [{ type: "text", text: JSON.stringify(mockStickyNotes, null, 2) }]
-      };
-    }
-
-    try {
-      const stickyNotes = await this.miroClient.getStickyNotes(boardId);
-      return {
-        content: [{ type: "text", text: JSON.stringify(stickyNotes, null, 2) }]
-      };
-    } catch (error) {
-      console.error(`Error getting sticky notes:`, error);
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
   private async calculateChildrenCoordinates(args: any) {
     const { boardId, frameId, childWidgetId } = args;
     if (!this.miroClient) {
@@ -1474,39 +1457,6 @@ private async getBoardContent(args: any) {
       };
     } catch (error) {
       console.error(`Error getting frame and child details:`, error);
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async getItemsByType(args: any) {
-    const { boardId, itemType } = args;
-    if (!this.miroClient) {
-      const mockItems = [
-        {
-          id: "mock-item-1",
-          type: itemType,
-          data: { content: `Mock ${itemType} content 1` },
-          position: { x: 0, y: 0 }
-        },
-        {
-          id: "mock-item-2",
-          type: itemType,
-          data: { content: `Mock ${itemType} content 2` },
-          position: { x: 100, y: 100 }
-        }
-      ];
-      return {
-        content: [{ type: "text", text: JSON.stringify(mockItems, null, 2) }]
-      };
-    }
-
-    try {
-      const items = await this.miroClient.getItemsByType(boardId, itemType);
-      return {
-        content: [{ type: "text", text: JSON.stringify(items, null, 2) }]
-      };
-    } catch (error) {
-      console.error(`Error getting items by type ${itemType}:`, error);
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
     }
   }
