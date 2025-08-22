@@ -219,28 +219,20 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
           }
         },
         {
-          name: "get_template_recommendations",
-          description: "Get template suggestions for existing board",
+          name: "recommend_templates",
+          description: "Get template suggestions for boards or meeting notes",
           inputSchema: {
             type: "object",
             properties: {
-              boardId: { type: "string", description: "Miro board ID" },
+              boardId: { type: "string", description: "Miro board ID to analyze" },
+              meetingNotes: { type: "string", description: "Meeting notes text to analyze" },
               maxRecommendations: { type: "number", description: "Max templates (default: 5)", default: 5 },
               maxContent: { type: "number", description: "Max content items (default: 20)", default: 20 }
             },
-            required: ["boardId"]
-          }
-        },
-        {
-          name: "recommend_templates",
-          description: "Get template suggestions from meeting notes",
-          inputSchema: {
-            type: "object",
-            properties: {
-              meetingNotes: { type: "string", description: "Text content to analyze" },
-              maxRecommendations: { type: "number", description: "Max templates (default: 5)", default: 5 }
-            },
-            required: ["meetingNotes"]
+            anyOf: [
+              { required: ["boardId"] },
+              { required: ["meetingNotes"] }
+            ]
           }
         },
         {
@@ -593,10 +585,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             return await this.getBoardItems(request.params.arguments);
           case "get_efficient_board_analysis":
             return await this.getEfficientBoardAnalysis(request.params.arguments);
-          case "get_template_recommendations":
-            return await this.getTemplateRecommendations(request.params.arguments);
-          case "get_board_analysis":
-            return await this.getBoardAnalysis(request.params.arguments);
           case "recommend_templates":
             return await this.recommendTemplates(request.params.arguments);
           case "create_miro_board":
@@ -621,6 +609,8 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             return await this.deleteText(request.params.arguments);
           case "create_sticky":
             return await this.createSticky(request.params.arguments);
+          case "get_sticky":
+            return await this.getSticky(request.params.arguments);
           case "update_sticky":
             return await this.updateSticky(request.params.arguments);
           case "delete_sticky":
@@ -814,68 +804,20 @@ private async getBoardItems(args: any) {
       .trim();
   }
 
-  private async getBoardAnalysis(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    let boardContent: string[];
-
-    if (!this.miroClient) {
-      boardContent = [
-        "Sprint planning for Q2 2024",
-        "User story: As a customer, I want to track my order",
-        "Retrospective action items"
-      ];
-    } else {
-      try {
-        boardContent = await this.miroClient.getBoardContent(boardId);
-      } catch (error) {
-        console.error(`Error getting board content for analysis:`, error);
-        // Try fallback approach
-        try {
-          const boardInfo = await this.miroClient.getBoardInfo(boardId);
-          boardContent = [];
-          if (boardInfo.name) boardContent.push(boardInfo.name);
-
-          for (const item of boardInfo.items) {
-            if (item.data?.content) {
-              const cleanContent = this.cleanHtmlContent(item.data.content);
-              if (cleanContent) boardContent.push(cleanContent);
-            }
-            if (item.data?.title) boardContent.push(item.data.title);
-            if (item.data?.text) boardContent.push(item.data.text);
-          }
-        } catch (fallbackError) {
-          throw error;
-        }
-      }
-    }
-
-    const analysis = this.analyzeContent(boardContent);
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify({
-          boardId,
-          contentSummary: { itemCount: boardContent.length, items: boardContent },
-          analysis: {
-            detectedKeywords: analysis.keywords,
-            identifiedCategories: analysis.categories,
-            context: analysis.context
-          }
-        }, null, 2)
-      }]
-    };
-  }
-
+  // CONSOLIDATED: This replaces both get_template_recommendations and recommend_templates
   private async recommendTemplates(args: any) {
-    const { boardId: rawBoardId, meetingNotes, maxRecommendations = 5 } = args;
-    
+    const { 
+      boardId: rawBoardId, 
+      meetingNotes, 
+      maxRecommendations = 5, 
+      maxContent = 20 
+    } = args;
 
     let content: string[];
     let contentType: string;
 
     if (rawBoardId) {
+      // Analyze Miro board
       const boardId = MiroClient.extractBoardId(rawBoardId);
 
       if (!this.miroClient) {
@@ -887,36 +829,44 @@ private async getBoardItems(args: any) {
         ];
       } else {
         try {
-          content = await this.miroClient.getBoardContent(boardId);
-        } catch (error) {
-          console.error(`Error getting board content for recommendations:`, error);
-          // Try fallback approach
-          try {
-            const boardInfo = await this.miroClient.getBoardInfo(boardId);
-            content = [];
-            if (boardInfo.name) content.push(boardInfo.name);
+          // Use the smart analysis method for efficiency
+          const result = await this.miroClient.getSmartBoardAnalysis(boardId, {
+            maxContent,
+            includeTemplateRecommendations: true,
+            maxTemplateRecommendations: maxRecommendations
+          });
 
-            for (const item of boardInfo.items) {
-              if (item.data?.content) {
-                const cleanContent = this.cleanHtmlContent(item.data.content);
-                if (cleanContent) content.push(cleanContent);
-              }
-              if (item.data?.title) content.push(item.data.title);
-              if (item.data?.text) content.push(item.data.text);
-            }
-          } catch (fallbackError) {
-            throw error;
-          }
+          // Return streamlined response
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                boardId,
+                contentType: "miro_board",
+                analysis: {
+                  detectedKeywords: result.analysis.detectedKeywords,
+                  identifiedCategories: result.analysis.identifiedCategories,
+                  context: result.analysis.context
+                },
+                recommendations: result.templateRecommendations || []
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          // Fallback to basic content extraction
+          content = await this.miroClient.getBoardContent(boardId);
         }
       }
       contentType = "miro_board";
     } else if (meetingNotes) {
+      // Analyze meeting notes
       content = this.parseMeetingNotes(meetingNotes);
       contentType = "meeting_notes";
     } else {
       throw new Error("Please provide either a Miro board ID or meeting notes text.");
     }
 
+    // Analyze content and generate recommendations
     const analysis = this.analyzeContent(content);
     const recommendations = this.generateRecommendations(analysis, maxRecommendations);
 
@@ -1094,55 +1044,6 @@ private async getBoardItems(args: any) {
       };
     } catch (error) {
       return this.createErrorResponse('Board analysis', error as Error, boardId);
-    }
-  }
-
-  private async getTemplateRecommendations(args: any) {
-    const { boardId: rawBoardId, maxRecommendations = 5, maxContent = 20 } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            templates: [
-              { name: "Sprint Planning", url: "https://miro.com/templates/sprint-planning/", category: "agile" },
-              { name: "Retrospective", url: "https://miro.com/templates/retrospective/", category: "agile" }
-            ],
-            context: "agile methodology"
-          })
-        }]
-      };
-    }
-
-    try {
-      console.error(`[getTemplateRecommendations] Getting templates for board: ${boardId}`);
-
-      const result = await this.miroClient.getSmartBoardAnalysis(boardId, {
-        maxContent,
-        includeTemplateRecommendations: true,
-        maxTemplateRecommendations: maxRecommendations
-      });
-
-      // Concise response format
-      const response = {
-        templates: (result.templateRecommendations || []).map(t => ({
-          name: t.name,
-          url: t.url,
-          category: t.category
-          // Remove relevanceScore to save tokens unless specifically needed
-        })),
-        context: result.analysis.context
-      };
-
-      console.error(`[getTemplateRecommendations] Found ${response.templates.length} recommendations`);
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(response) }]
-      };
-    } catch (error) {
-      return this.createErrorResponse('Template recommendations', error as Error, boardId);
     }
   }
 
@@ -1344,6 +1245,21 @@ private async getBoardItems(args: any) {
     }
     try {
       const result = await this.miroClient.createSticky(args.boardId, args.data, args.position, args.geometry, args.style, args.parentId);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+    }
+  }
+
+  private async getSticky(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
+    if (!this.miroClient) {
+      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+    }
+    try {
+      const result = await this.miroClient.getSticky(args.boardId, args.itemId);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
@@ -1592,8 +1508,7 @@ private async getBoardItems(args: any) {
   }
 
   private async calculateFramePositions(args: any) {
-    const { boardId: rawBoardId, frameWidth, frameHeight } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
+    const { frameWidth, frameHeight } = args;
 
     if (!this.miroClient) {
       const mockPositions = {
