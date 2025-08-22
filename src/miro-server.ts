@@ -722,12 +722,14 @@ private extractTextContent(item: any): string | null {
 
 private async getBoardItems(args: any) {
   const { 
-    boardId, 
+    boardId: rawBoardId, 
     output = "content",
     itemTypes, 
     summarize = true, 
     maxItems = 20 
   } = args;
+
+  const boardId = MiroClient.extractBoardId(rawBoardId);
 
   if (!this.miroClient) {
     const mockItems = [
@@ -813,7 +815,9 @@ private async getBoardItems(args: any) {
   }
 
   private async getBoardAnalysis(args: any) {
-    const { boardId } = args;
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     let boardContent: string[];
 
     if (!this.miroClient) {
@@ -865,11 +869,15 @@ private async getBoardItems(args: any) {
   }
 
   private async recommendTemplates(args: any) {
-    const { boardId, meetingNotes, maxRecommendations = 5 } = args;
+    const { boardId: rawBoardId, meetingNotes, maxRecommendations = 5 } = args;
+    
+
     let content: string[];
     let contentType: string;
 
-    if (boardId) {
+    if (rawBoardId) {
+      const boardId = MiroClient.extractBoardId(rawBoardId);
+
       if (!this.miroClient) {
         content = [
           "Sprint planning for Q2 2024",
@@ -916,7 +924,7 @@ private async getBoardItems(args: any) {
       content: [{
         type: "text",
         text: JSON.stringify({
-          ...(boardId && { boardId }),
+          ...(rawBoardId && { boardId: MiroClient.extractBoardId(rawBoardId) }),
           contentType,
           analysis: {
             detectedKeywords: analysis.keywords,
@@ -1042,7 +1050,8 @@ private async getBoardItems(args: any) {
   }
 
   private async getEfficientBoardAnalysis(args: any) {
-    const { boardId, maxContent = 15 } = args;
+    const { boardId: rawBoardId, maxContent = 15 } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
 
     if (!this.miroClient) {
       return {
@@ -1089,7 +1098,8 @@ private async getBoardItems(args: any) {
   }
 
   private async getTemplateRecommendations(args: any) {
-    const { boardId, maxRecommendations = 5, maxContent = 20 } = args;
+    const { boardId: rawBoardId, maxRecommendations = 5, maxContent = 20 } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
 
     if (!this.miroClient) {
       return {
@@ -1191,6 +1201,9 @@ private async getBoardItems(args: any) {
   }
 
   private async updateItemPositionOrParent(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, position: args.position, parentId: args.parentId || null }, null, 2) }] };
     }
@@ -1203,6 +1216,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createFrame(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: "mock-frame-id", boardId: args.boardId, title: args.title, x: args.x, y: args.y, width: args.width, height: args.height }, null, 2) }] };
     }
@@ -1215,6 +1231,9 @@ private async getBoardItems(args: any) {
   }
 
   private async getFrame(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
     }
@@ -1227,6 +1246,9 @@ private async getBoardItems(args: any) {
   }
 
   private async updateFrame(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, mock: true }, null, 2) }] };
     }
@@ -1239,6 +1261,9 @@ private async getBoardItems(args: any) {
   }
 
   private async deleteFrame(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
     }
@@ -1251,6 +1276,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createText(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: "mock-text-id", ...args }, null, 2) }] };
     }
@@ -1263,6 +1291,9 @@ private async getBoardItems(args: any) {
   }
 
   private async getTextItem(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
     }
@@ -1275,6 +1306,9 @@ private async getBoardItems(args: any) {
   }
 
   private async updateText(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
     }
@@ -1287,6 +1321,9 @@ private async getBoardItems(args: any) {
   }
 
   private async deleteText(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
     }
@@ -1299,6 +1336,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createSticky(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: "mock-sticky-id", ...args }, null, 2) }] };
     }
@@ -1311,6 +1351,9 @@ private async getBoardItems(args: any) {
   }
 
   private async updateSticky(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
     }
@@ -1323,7 +1366,10 @@ private async getBoardItems(args: any) {
   }
 
   private async deleteSticky(args: any) {
-    if (!this.miroClient) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
+      if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
     }
     try {
@@ -1335,6 +1381,9 @@ private async getBoardItems(args: any) {
   }
 
   private async shareBoard(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ boardId: args.boardId, emails: args.emails, role: args.role, message: args.message, mock: true }, null, 2) }] };
     }
@@ -1351,6 +1400,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createCard(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: "mock-card-id", ...args }, null, 2) }] };
     }
@@ -1363,6 +1415,9 @@ private async getBoardItems(args: any) {
   }
 
   private async getCard(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
     }
@@ -1375,6 +1430,9 @@ private async getBoardItems(args: any) {
   }
 
   private async updateCard(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
     }
@@ -1387,6 +1445,9 @@ private async getBoardItems(args: any) {
   }
 
   private async deleteCard(args: any) {
+    const { boardId: rawBoardId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
     }
@@ -1399,7 +1460,9 @@ private async getBoardItems(args: any) {
   }
 
   private async calculateChildrenCoordinates(args: any) {
-    const { boardId, frameId, childWidgetId } = args;
+    const { boardId: rawBoardId, frameId, childWidgetId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       const mockCoordinates = {
         x: 100,
@@ -1426,7 +1489,9 @@ private async getBoardItems(args: any) {
   }
 
   private async getFrameAndChildDetails(args: any) {
-    const { boardId, frameId, childWidgetId } = args;
+    const { boardId: rawBoardId, frameId, childWidgetId } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       const mockDetails = {
         frame: {
@@ -1462,7 +1527,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createFrameLayout(args: any) {
-    const { boardId, frameId, layout } = args;
+    const { boardId: rawBoardId, frameId, layout } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       const mockLayout = {
         createdItems: [
@@ -1492,7 +1559,9 @@ private async getBoardItems(args: any) {
   }
 
   private async createStyledText(args: any) {
-    const { boardId, parentId, content, position, type = 'body', frameWidth } = args;
+    const { boardId: rawBoardId, parentId, content, position, type = 'body', frameWidth } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       const mockText = {
         id: "mock-styled-text",
@@ -1523,7 +1592,9 @@ private async getBoardItems(args: any) {
   }
 
   private async calculateFramePositions(args: any) {
-    const { frameWidth, frameHeight } = args;
+    const { boardId: rawBoardId, frameWidth, frameHeight } = args;
+    const boardId = MiroClient.extractBoardId(rawBoardId);
+
     if (!this.miroClient) {
       const mockPositions = {
         title: { x: frameWidth / 2, y: 80 },

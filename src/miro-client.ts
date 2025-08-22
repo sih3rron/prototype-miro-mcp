@@ -36,6 +36,39 @@ export class MiroClient {
     this.accessToken = accessToken;
   }
 
+  static extractBoardId(input: string): string {
+    console.error(`[extractBoardId] Input: "${input}"`);
+    
+    // If it's already just a board ID, return as-is
+    if (!input.includes('/') && !input.includes('miro.com')) {
+      const normalized = input.endsWith('=') ? input : input + '=';
+      console.error(`[extractBoardId] Direct ID normalized: "${normalized}"`);
+      return normalized;
+    }
+    
+    // Extract from URL patterns
+    const urlPatterns = [
+      /\/board\/([^\/\?#]+)/,  // /board/uXjVJY6fU2g=
+      /\/app\/board\/([^\/\?#]+)/, // /app/board/uXjVJY6fU2g=
+    ];
+    
+    for (const pattern of urlPatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        let boardId = decodeURIComponent(match[1]);
+        // Ensure it ends with = for Miro board IDs
+        const normalized = boardId.endsWith('=') ? boardId : boardId + '=';
+        console.error(`[extractBoardId] Extracted from URL: "${normalized}"`);
+        return normalized;
+      }
+    }
+    
+    // If no pattern matches, assume it's already a board ID
+    const fallback = input.endsWith('=') ? input : input + '=';
+    console.error(`[extractBoardId] Fallback: "${fallback}"`);
+    return fallback;
+  }
+
   private async makeRequest(endpoint: string, usePagination: boolean = false): Promise<any> {
     try {
       if (!usePagination) {
