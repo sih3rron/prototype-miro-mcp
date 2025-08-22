@@ -181,8 +181,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
   private setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
-
-
         {
           name: "analyze_board_content",
           description: "Analyze board content with smart summarization, keywords, and categories - USE THIS FOR GENERAL BOARD ANALYSIS",
@@ -263,171 +261,152 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
           }
         },
         {
-          name: "create_frame",
-          description: "Create new frame",
+          name: "manage_frame",
+          description: "Create, read, update, or delete frames",
           inputSchema: {
             type: "object",
             properties: {
               boardId: { type: "string", description: "Board ID" },
-              title: { type: "string", description: "Frame title" },
-              x: { type: "number", description: "X coordinate" },
-              y: { type: "number", description: "Y coordinate" },
-              width: { type: "number", description: "Width" },
-              height: { type: "number", description: "Height" },
-              parentId: { type: "string", description: "Parent frame ID" }
+              action: { 
+                type: "string", 
+                enum: ["create", "get", "update", "delete"],
+                description: "Operation to perform"
+              },
+              frameId: { 
+                type: "string", 
+                description: "Frame ID (required for get/update/delete)" 
+              },
+              title: { 
+                type: "string", 
+                description: "Frame title (required for create)" 
+              },
+              x: { type: "number", description: "X coordinate (required for create)" },
+              y: { type: "number", description: "Y coordinate (required for create)" },
+              width: { type: "number", description: "Width (required for create)" },
+              height: { type: "number", description: "Height (required for create)" },
+              data: { type: "object", description: "Frame data (for update)" },
+              style: { type: "object", description: "Frame style (for update)" },
+              geometry: { type: "object", description: "Frame geometry (for update)" },
+              parentId: { type: "string", description: "Parent frame ID (optional)" }
             },
-            required: ["boardId", "title", "x", "y", "width", "height"]
+            required: ["boardId", "action"],
+            allOf: [
+              {
+                if: { properties: { action: { const: "create" } } },
+                then: { required: ["title", "x", "y", "width", "height"] }
+              },
+              {
+                if: { 
+                  properties: { 
+                    action: { 
+                      enum: ["get", "update", "delete"] 
+                    } 
+                  } 
+                },
+                then: { required: ["frameId"] }
+              }
+            ]
           }
         },
         {
-          name: "get_frame",
-          description: "Get frame details",
+          name: "manage_text",
+          description: "Create, read, update, or delete text items",
           inputSchema: {
             type: "object",
             properties: {
               boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Frame ID" }
+              action: { 
+                type: "string", 
+                enum: ["create", "get", "update", "delete"],
+                description: "Operation to perform"
+              },
+              itemId: { 
+                type: "string", 
+                description: "Text item ID (required for get/update/delete)" 
+              },
+              data: { 
+                type: "object", 
+                description: "Text content (required for create, optional for update)" 
+              },
+              position: { 
+                type: "object", 
+                properties: { x: { type: "number" }, y: { type: "number" } },
+                required: ["x", "y"],
+                description: "Text position (required for create)" 
+              },
+              geometry: { type: "object", description: "Text geometry (optional)" },
+              style: { type: "object", description: "Text style (optional)" },
+              parentId: { type: "string", description: "Parent ID (optional)" }
             },
-            required: ["boardId", "itemId"]
+            required: ["boardId", "action"],
+            allOf: [
+              {
+                if: { properties: { action: { const: "create" } } },
+                then: { required: ["data", "position"] }
+              },
+              {
+                if: { 
+                  properties: { 
+                    action: { 
+                      enum: ["get", "update", "delete"] 
+                    } 
+                  } 
+                },
+                then: { required: ["itemId"] }
+              }
+            ]
           }
-        },
-        {
-          name: "update_frame",
-          description: "Update frame properties",
+        },{
+          name: "manage_sticky",
+          description: "Create, read, update, or delete sticky notes",
           inputSchema: {
             type: "object",
             properties: {
               boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Frame ID" },
-              data: { type: "object", description: "Frame data" },
-              style: { type: "object", description: "Frame style" },
-              geometry: { type: "object", description: "Frame geometry" }
+              action: { 
+                type: "string", 
+                enum: ["create", "get", "update", "delete"],
+                description: "Operation to perform"
+              },
+              itemId: { 
+                type: "string", 
+                description: "Sticky note ID (required for get/update/delete)" 
+              },
+              data: { 
+                type: "object", 
+                description: "Sticky content (required for create, optional for update)" 
+              },
+              position: { 
+                type: "object", 
+                properties: { x: { type: "number" }, y: { type: "number" } },
+                required: ["x", "y"],
+                description: "Sticky position (required for create)" 
+              },
+              geometry: { 
+                type: "object", 
+                properties: { width: { type: "number" }, height: { type: "number" } },
+                description: "Sticky geometry (optional)" 
+              },
+              style: { type: "object", description: "Sticky style (optional)" },
+              parentId: { type: "string", description: "Parent ID (optional)" }
             },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "delete_frame",
-          description: "Delete frame",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Frame ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "create_text",
-          description: "Create text item",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              data: { type: "object", description: "Text content" },
-              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Text geometry" },
-              style: { type: "object", description: "Text style" },
-              parentId: { type: "string", description: "Parent ID" }
-            },
-            required: ["boardId", "data", "position"]
-          }
-        },
-        {
-          name: "get_text_item",
-          description: "Get text item details",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Text item ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "update_text",
-          description: "Update text item",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Text item ID" },
-              data: { type: "object", description: "Text data" },
-              style: { type: "object", description: "Text style" },
-              geometry: { type: "object", description: "Text geometry" },
-              parentId: { type: "string", description: "Parent ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "delete_text",
-          description: "Delete text item",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Text item ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "create_sticky",
-          description: "Create sticky note",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              data: { type: "object", description: "Sticky content" },
-              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Sticky geometry" },
-              style: { type: "object", description: "Sticky style" },
-              parentId: { type: "string", description: "Parent ID" }
-            },
-            required: ["boardId", "data", "position"]
-          }
-        },
-        {
-          name: "get_sticky",
-          description: "Get sticky note details",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Sticky note ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "update_sticky",
-          description: "Update sticky note",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Sticky note ID" },
-              data: { type: "object", description: "Sticky data" },
-              style: { type: "object", description: "Sticky style" },
-              geometry: { type: "object", description: "Sticky geometry" },
-              parentId: { type: "string", description: "Parent ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "delete_sticky",
-          description: "Delete sticky note",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Sticky note ID" }
-            },
-            required: ["boardId", "itemId"]
+            required: ["boardId", "action"],
+            allOf: [
+              {
+                if: { properties: { action: { const: "create" } } },
+                then: { required: ["data", "position"] }
+              },
+              {
+                if: { 
+                  properties: { 
+                    action: { 
+                      enum: ["get", "update", "delete"] 
+                    } 
+                  } 
+                },
+                then: { required: ["itemId"] }
+              }
+            ]
           }
         },
         {
@@ -443,61 +422,57 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             },
             required: ["boardId", "emails", "role"]
           }
-        },
-        {
-          name: "create_card",
-          description: "Create card item",
+        },{
+          name: "manage_card",
+          description: "Create, read, update, or delete card items",
           inputSchema: {
             type: "object",
             properties: {
               boardId: { type: "string", description: "Board ID" },
-              data: { type: "object", description: "Card content" },
-              position: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"] },
-              geometry: { type: "object", description: "Card geometry" },
-              style: { type: "object", description: "Card style" },
-              parentId: { type: "string", description: "Parent ID" }
+              action: { 
+                type: "string", 
+                enum: ["create", "get", "update", "delete"],
+                description: "Operation to perform"
+              },
+              itemId: { 
+                type: "string", 
+                description: "Card ID (required for get/update/delete)" 
+              },
+              data: { 
+                type: "object", 
+                description: "Card content (required for create, optional for update)" 
+              },
+              position: { 
+                type: "object", 
+                properties: { x: { type: "number" }, y: { type: "number" } },
+                required: ["x", "y"],
+                description: "Card position (required for create)" 
+              },
+              geometry: { 
+                type: "object", 
+                properties: { width: { type: "number" }, height: { type: "number" } },
+                description: "Card geometry (optional)" 
+              },
+              style: { type: "object", description: "Card style (optional)" },
+              parentId: { type: "string", description: "Parent ID (optional)" }
             },
-            required: ["boardId", "data", "position"]
-          }
-        },
-        {
-          name: "get_card",
-          description: "Get card details",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Card ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "update_card",
-          description: "Update card item",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Card ID" },
-              data: { type: "object", description: "Card data" },
-              style: { type: "object", description: "Card style" },
-              geometry: { type: "object", description: "Card geometry" },
-              parentId: { type: "string", description: "Parent ID" }
-            },
-            required: ["boardId", "itemId"]
-          }
-        },
-        {
-          name: "delete_card",
-          description: "Delete card item",
-          inputSchema: {
-            type: "object",
-            properties: {
-              boardId: { type: "string", description: "Board ID" },
-              itemId: { type: "string", description: "Card ID" }
-            },
-            required: ["boardId", "itemId"]
+            required: ["boardId", "action"],
+            allOf: [
+              {
+                if: { properties: { action: { const: "create" } } },
+                then: { required: ["data", "position"] }
+              },
+              {
+                if: { 
+                  properties: { 
+                    action: { 
+                      enum: ["get", "update", "delete"] 
+                    } 
+                  } 
+                },
+                then: { required: ["itemId"] }
+              }
+            ]
           }
         },
         {
@@ -591,40 +566,16 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
             return await this.createMiroBoard(request.params.arguments);
           case "update_item_position_or_parent":
             return await this.updateItemPositionOrParent(request.params.arguments);
-          case "create_frame":
-            return await this.createFrame(request.params.arguments);
-          case "get_frame":
-            return await this.getFrame(request.params.arguments);
-          case "update_frame":
-            return await this.updateFrame(request.params.arguments);
-          case "delete_frame":
-            return await this.deleteFrame(request.params.arguments);
-          case "create_text":
-            return await this.createText(request.params.arguments);
-          case "get_text_item":
-            return await this.getTextItem(request.params.arguments);
-          case "update_text":
-            return await this.updateText(request.params.arguments);
-          case "delete_text":
-            return await this.deleteText(request.params.arguments);
-          case "create_sticky":
-            return await this.createSticky(request.params.arguments);
-          case "get_sticky":
-            return await this.getSticky(request.params.arguments);
-          case "update_sticky":
-            return await this.updateSticky(request.params.arguments);
-          case "delete_sticky":
-            return await this.deleteSticky(request.params.arguments);
+          case "manage_frame":
+            return await this.manageFrame(request.params.arguments);
+          case "manage_text":
+            return await this.manageText(request.params.arguments);
+          case "manage_sticky":
+            return await this.manageSticky(request.params.arguments);
           case "share_board":
             return await this.shareBoard(request.params.arguments);
-          case "create_card":
-            return await this.createCard(request.params.arguments);
-          case "get_card":
-            return await this.getCard(request.params.arguments);
-          case "update_card":
-            return await this.updateCard(request.params.arguments);
-          case "delete_card":
-            return await this.deleteCard(request.params.arguments);
+          case "manage_card":
+            return await this.manageCard(request.params.arguments);
           case "calculate_children_coordinates":
             return await this.calculateChildrenCoordinates(request.params.arguments);
           case "get_frame_and_child_details":
@@ -860,7 +811,6 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
       .trim();
   }
 
-  // CONSOLIDATED: This replaces both get_template_recommendations and recommend_templates
   private async recommendTemplates(args: any) {
     const {
       boardId: rawBoardId,
@@ -1124,183 +1074,238 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
     }
   }
 
-  private async createFrame(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
+  private async manageFrame(args: any) {
+    const { boardId, action, frameId, title, x, y, width, height, data, style, geometry, parentId } = args;
+  
     if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-frame-id", boardId: args.boardId, title: args.title, x: args.x, y: args.y, width: args.width, height: args.height }, null, 2) }] };
+      // Type-safe mock responses
+      let mockResponse;
+      
+      switch (action) {
+        case "create":
+          mockResponse = { id: "mock-frame-id", title: title || "Mock Frame", x, y, width, height };
+          break;
+        case "get":
+          mockResponse = { id: frameId, title: "Mock Frame", boardId };
+          break;
+        case "update":
+          mockResponse = { id: frameId, updated: true, boardId };
+          break;
+        case "delete":
+          mockResponse = { id: frameId, deleted: true, boardId };
+          break;
+        default:
+          mockResponse = { error: `Invalid action: ${action}` };
+      }
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockResponse, null, 2) }]
+      };
     }
+  
     try {
-      const result = await this.miroClient.createFrame(args.boardId, args.title, args.x, args.y, args.width, args.height);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      console.error(`[manageFrame] ${action} operation for board: ${boardId}${frameId ? `, frame: ${frameId}` : ''}`);
+  
+      let result;
+      
+      switch (action) {
+        case "create":
+          result = await this.miroClient.createFrame(boardId, title, x, y, width, height);
+          console.error(`[manageFrame] Created frame: ${result.id}`);
+          break;
+          
+        case "get":
+          result = await this.miroClient.getFrame(boardId, frameId);
+          console.error(`[manageFrame] Retrieved frame: ${frameId}`);
+          break;
+          
+        case "update":
+          result = await this.miroClient.updateFrame(boardId, frameId, data, style, geometry);
+          console.error(`[manageFrame] Updated frame: ${frameId}`);
+          break;
+          
+        case "delete":
+          result = await this.miroClient.deleteFrame(boardId, frameId);
+          console.error(`[manageFrame] Deleted frame: ${frameId}`);
+          break;
+          
+        default:
+          throw new Error(`Invalid action: ${action}`);
+      }
+  
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
     } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+      return this.createErrorResponse(`Frame ${action}`, error as Error, frameId || boardId);
     }
   }
 
-  private async getFrame(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
+  private async manageText(args: any) {
+    const { boardId, action, itemId, data, position, geometry, style, parentId } = args;
+  
     if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
+      // Type-safe mock responses
+      let mockResponse;
+      
+      switch (action) {
+        case "create":
+          mockResponse = { 
+            id: "mock-text-id", 
+            type: "text",
+            data: data || { content: "Mock text" }, 
+            position: position || { x: 0, y: 0 },
+            boardId 
+          };
+          break;
+        case "get":
+          mockResponse = { 
+            id: itemId, 
+            type: "text",
+            data: { content: "Mock text content" }, 
+            boardId 
+          };
+          break;
+        case "update":
+          mockResponse = { 
+            id: itemId, 
+            updated: true, 
+            data: data || { content: "Updated text" },
+            boardId 
+          };
+          break;
+        case "delete":
+          mockResponse = { id: itemId, deleted: true, boardId };
+          break;
+        default:
+          mockResponse = { error: `Invalid action: ${action}` };
+      }
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockResponse, null, 2) }]
+      };
     }
+  
     try {
-      const result = await this.miroClient.getFrame(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      console.error(`[manageText] ${action} operation for board: ${boardId}${itemId ? `, item: ${itemId}` : ''}`);
+  
+      let result;
+      
+      switch (action) {
+        case "create":
+          result = await this.miroClient.createText(boardId, data, position, geometry, style, parentId);
+          console.error(`[manageText] Created text item: ${result.id}`);
+          break;
+          
+        case "get":
+          result = await this.miroClient.getTextItem(boardId, itemId);
+          console.error(`[manageText] Retrieved text item: ${itemId}`);
+          break;
+          
+        case "update":
+          result = await this.miroClient.updateText(boardId, itemId, data, style, geometry, parentId);
+          console.error(`[manageText] Updated text item: ${itemId}`);
+          break;
+          
+        case "delete":
+          result = await this.miroClient.deleteText(boardId, itemId);
+          console.error(`[manageText] Deleted text item: ${itemId}`);
+          break;
+          
+        default:
+          throw new Error(`Invalid action: ${action}`);
+      }
+  
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
     } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+      return this.createErrorResponse(`Text ${action}`, error as Error, itemId || boardId);
     }
   }
 
-  private async updateFrame(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
+  private async manageSticky(args: any) {
+    const { boardId, action, itemId, data, position, geometry, style, parentId } = args;
+  
     if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, mock: true }, null, 2) }] };
+      // Type-safe mock responses
+      let mockResponse;
+      
+      switch (action) {
+        case "create":
+          mockResponse = { 
+            id: "mock-sticky-id", 
+            type: "sticky_note",
+            data: data || { content: "Mock sticky note" }, 
+            position: position || { x: 0, y: 0 },
+            geometry: geometry || { width: 200, height: 200 },
+            boardId 
+          };
+          break;
+        case "get":
+          mockResponse = { 
+            id: itemId, 
+            type: "sticky_note",
+            data: { content: "Mock sticky content" }, 
+            position: { x: 100, y: 100 },
+            boardId 
+          };
+          break;
+        case "update":
+          mockResponse = { 
+            id: itemId, 
+            updated: true, 
+            data: data || { content: "Updated sticky" },
+            boardId 
+          };
+          break;
+        case "delete":
+          mockResponse = { id: itemId, deleted: true, boardId };
+          break;
+        default:
+          mockResponse = { error: `Invalid action: ${action}` };
+      }
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockResponse, null, 2) }]
+      };
     }
+  
     try {
-      const result = await this.miroClient.updateFrame(args.boardId, args.itemId, args.data, args.style, args.geometry);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      console.error(`[manageSticky] ${action} operation for board: ${boardId}${itemId ? `, item: ${itemId}` : ''}`);
+  
+      let result;
+      
+      switch (action) {
+        case "create":
+          result = await this.miroClient.createSticky(boardId, data, position, geometry, style, parentId);
+          console.error(`[manageSticky] Created sticky note: ${result.id}`);
+          break;
+          
+        case "get":
+          result = await this.miroClient.getSticky(boardId, itemId);
+          console.error(`[manageSticky] Retrieved sticky note: ${itemId}`);
+          break;
+          
+        case "update":
+          result = await this.miroClient.updateSticky(boardId, itemId, data, style, geometry, parentId);
+          console.error(`[manageSticky] Updated sticky note: ${itemId}`);
+          break;
+          
+        case "delete":
+          result = await this.miroClient.deleteSticky(boardId, itemId);
+          console.error(`[manageSticky] Deleted sticky note: ${itemId}`);
+          break;
+          
+        default:
+          throw new Error(`Invalid action: ${action}`);
+      }
+  
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
     } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async deleteFrame(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.deleteFrame(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async createText(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-text-id", ...args }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.createText(args.boardId, args.data, args.position, args.geometry, args.style, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async getTextItem(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.getTextItem(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async updateText(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.updateText(args.boardId, args.itemId, args.data, args.style, args.geometry, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async deleteText(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.deleteText(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async createSticky(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-sticky-id", ...args }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.createSticky(args.boardId, args.data, args.position, args.geometry, args.style, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async getSticky(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.getSticky(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async updateSticky(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.updateSticky(args.boardId, args.itemId, args.data, args.style, args.geometry, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async deleteSticky(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.deleteSticky(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+      return this.createErrorResponse(`Sticky ${action}`, error as Error, itemId || boardId);
     }
   }
 
@@ -1323,63 +1328,88 @@ RULES: Always set geometry.width for nested items. Adjust fontSize to fit. Retur
     }
   }
 
-  private async createCard(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
+  private async manageCard(args: any) {
+    const { boardId, action, itemId, data, position, geometry, style, parentId } = args;
+  
     if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: "mock-card-id", ...args }, null, 2) }] };
+      // Type-safe mock responses
+      let mockResponse;
+      
+      switch (action) {
+        case "create":
+          mockResponse = { 
+            id: "mock-card-id", 
+            type: "card",
+            data: data || { title: "Mock Card", content: "Mock card content" }, 
+            position: position || { x: 0, y: 0 },
+            geometry: geometry || { width: 300, height: 200 },
+            boardId 
+          };
+          break;
+        case "get":
+          mockResponse = { 
+            id: itemId, 
+            type: "card",
+            data: { title: "Mock Card", content: "Mock card content" }, 
+            position: { x: 200, y: 300 },
+            boardId 
+          };
+          break;
+        case "update":
+          mockResponse = { 
+            id: itemId, 
+            updated: true, 
+            data: data || { title: "Updated Card", content: "Updated content" },
+            boardId 
+          };
+          break;
+        case "delete":
+          mockResponse = { id: itemId, deleted: true, boardId };
+          break;
+        default:
+          mockResponse = { error: `Invalid action: ${action}` };
+      }
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(mockResponse, null, 2) }]
+      };
     }
+  
     try {
-      const result = await this.miroClient.createCard(args.boardId, args.data, args.position, args.geometry, args.style, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      console.error(`[manageCard] ${action} operation for board: ${boardId}${itemId ? `, item: ${itemId}` : ''}`);
+  
+      let result;
+      
+      switch (action) {
+        case "create":
+          result = await this.miroClient.createCard(boardId, data, position, geometry, style, parentId);
+          console.error(`[manageCard] Created card: ${result.id}`);
+          break;
+          
+        case "get":
+          result = await this.miroClient.getCard(boardId, itemId);
+          console.error(`[manageCard] Retrieved card: ${itemId}`);
+          break;
+          
+        case "update":
+          result = await this.miroClient.updateCard(boardId, itemId, data, style, geometry, parentId);
+          console.error(`[manageCard] Updated card: ${itemId}`);
+          break;
+          
+        case "delete":
+          result = await this.miroClient.deleteCard(boardId, itemId);
+          console.error(`[manageCard] Deleted card: ${itemId}`);
+          break;
+          
+        default:
+          throw new Error(`Invalid action: ${action}`);
+      }
+  
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
     } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async getCard(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.getCard(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async updateCard(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, updated: true, data: args.data, style: args.style, geometry: args.geometry, parentId: args.parentId || null, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.updateCard(args.boardId, args.itemId, args.data, args.style, args.geometry, args.parentId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
-    }
-  }
-
-  private async deleteCard(args: any) {
-    const { boardId: rawBoardId } = args;
-    const boardId = MiroClient.extractBoardId(rawBoardId);
-
-    if (!this.miroClient) {
-      return { content: [{ type: "text", text: JSON.stringify({ id: args.itemId, boardId: args.boardId, deleted: true, mock: true }, null, 2) }] };
-    }
-    try {
-      const result = await this.miroClient.deleteCard(args.boardId, args.itemId);
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: `Error: ${(error as Error).message}` }], isError: true };
+      return this.createErrorResponse(`Card ${action}`, error as Error, itemId || boardId);
     }
   }
 
